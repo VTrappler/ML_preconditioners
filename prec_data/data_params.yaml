@@ -1,0 +1,4 @@
+model:
+  dimension: 20
+  nsamples: 500
+  window: 10

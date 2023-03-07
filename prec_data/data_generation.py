@@ -104,7 +104,10 @@ if __name__ == "__main__":
         dim = conf.model["dimension"]
         nsamples = conf.model["nsamples"]
         window = conf.model['window']
-        target = f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
+        if "output" in conf.model.keys():
+            target = conf.model['output']
+        else:
+            target = f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
 
     else:
         nsamples = args.N
@@ -126,4 +129,4 @@ if __name__ == "__main__":
         training_data = generate_training_dummy(Nobs=nsamples)
     else:
         training_data = generate_training_x(lorenz, Nobs=nsamples)
-    save_data(training_data, args.target)
+    save_data(training_data, target)

@@ -1,0 +1,29 @@
+schema: '2.0'
+stages:
+  generate_data:
+    cmd: python3.8 prec_data/data_generation.py --config prec_data/data_params.yaml
+    deps:
+    - path: prec_data/data.py
+      md5: 023fc4af159a5a2904c089170a6a42fb
+      size: 13099
+    - path: prec_data/data_generation.py
+      md5: c1c86e7432d8f3dcd604bdec06a6f9d8
+      size: 3939
+    - path: prec_data/data_params.yaml
+      md5: 0cc02053f8c6444a80cc40e702d5d8c9
+      size: 82
+  smoke_train:
+    cmd: python3.8 training_smoke.py --config config_smoke.yaml
+    deps:
+    - path: config_smoke.yaml
+      md5: e2522147160425b621e85591fa150175
+      size: 173
+    - path: raw_data/data.pkl
+      md5: 84bae131ea9868a449247a02024b5721
+      size: 169322620
+  smoke_hpo:
+    cmd: python3 hpo_smoke.py
+    deps:
+    - path: raw_data/data.pkl
+      md5: 84bae131ea9868a449247a02024b5721
+      size: 169322620

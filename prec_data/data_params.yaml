@@ -1,4 +1,5 @@
 model:
   dimension: 20
-  nsamples: 500
+  nsamples: 5000
   window: 10
+  output: "raw_data/data.pkl"

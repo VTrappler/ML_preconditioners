@@ -28,8 +28,8 @@ stages:
       md5: 0fbaef2799d8b6a9c8a3a0c602817481
       size: 169
     - path: training_smoke.py
-      md5: 2530772e4ccbe3a783a78f1d1b9a2f92
-      size: 2961
+      md5: 35b48827fc36467de2771d36f4c0c877
+      size: 2657
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:

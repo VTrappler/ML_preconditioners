@@ -7,5 +7,5 @@ architecture:
   neurons_per_layer: 64
   batch_size: 32
 optimizer:
-  lr: 1e-5
-  epochs: 10
+  lr: 1e-6
+  epochs: 500

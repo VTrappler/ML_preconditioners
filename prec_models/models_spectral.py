@@ -173,7 +173,7 @@ class SVDConvolutional(SVDPrec):
         ## Construction of the MLP
         ### Construction of the input layer
 
-        self.layers = ConvLayersSVD(state_dimension, n_latent=rank, kernel_size=3)
+        self.layers = ConvLayersSVD(state_dimension, n_latent=rank, kernel_size=5)
 
 
 

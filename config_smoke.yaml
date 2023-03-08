@@ -1,11 +1,11 @@
 data:
   dimension: 20
-  data_path: raw_data/20_10obs_500.pkl
+  data_path: raw_data/data.pkl
 architecture:
   rank: 5
   n_layers: 3
   neurons_per_layer: 64
   batch_size: 8
 optimizer:
-  lr: 1e-7
-  epochs: 50
+  lr: 1e-5
+  epochs: 200

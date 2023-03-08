@@ -22,14 +22,14 @@ stages:
     cmd: python3.8 training_smoke.py --config config_smoke.yaml
     deps:
     - path: config_smoke.yaml
-      md5: e2522147160425b621e85591fa150175
-      size: 173
+      md5: a05390e4c52d47a57f898a18bb38136c
+      size: 166
     - path: raw_data/data.pkl
-      md5: 84bae131ea9868a449247a02024b5721
+      md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:
     - path: raw_data/data.pkl
-      md5: 84bae131ea9868a449247a02024b5721
+      md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620

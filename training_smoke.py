@@ -1,5 +1,5 @@
 from prec_data.data import TangentLinearDataModule
-from prec_models.models_unstructured import BandMatrix, LowRank
+from prec_models.models_spectral import SVDPrec
 import torch
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
@@ -25,7 +25,7 @@ def main(config):
     print(f"{state_dimension=}")
     data_path = config['data']['data_path']
 
-    torch_model = construct_model_class(LowRank, rank=config['architecture']['rank'])
+    torch_model = construct_model_class(SVDPrec, rank=config['architecture']['rank'])
     mlflow.log_params(config['architecture'])
     mlflow.log_params(config['data'])
     mlflow.log_params(config['optimizer'])

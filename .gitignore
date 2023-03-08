@@ -6,3 +6,4 @@ lightning_logs*
 mlruns*
 _obsolete*
 *.code-workspace
+.env

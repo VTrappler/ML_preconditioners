@@ -1,5 +1,8 @@
+import sys
+sys.path.append('..')
+import os
 from prec_data.data import TangentLinearDataModule
-from prec_models.models_spectral import SVDPrec
+from prec_models.models_spectral import SVDPrec, SVDConvolutional
 import torch
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
@@ -9,7 +12,8 @@ import functools
 from pytorch_lightning.loggers import TensorBoardLogger
 import mlflow
 from omegaconf import OmegaConf
-
+from os.path import join, dirname
+from dotenv import load_dotenv, dotenv_values
 def construct_model_class(cl, **kwargs):
     class dummy(cl):
         __init__ = functools.partialmethod(cl.__init__, **kwargs)
@@ -17,15 +21,13 @@ def construct_model_class(cl, **kwargs):
     return dummy
 
 
-
-
 def main(config):
-    mlflow.pytorch.autolog()
+    mlflow.pytorch.autolog(log_models=False) # Logging model with signature at the end instead
     state_dimension = config['data']['dimension']
     print(f"{state_dimension=}")
     data_path = config['data']['data_path']
 
-    torch_model = construct_model_class(SVDPrec, rank=config['architecture']['rank'])
+    torch_model = construct_model_class(SVDConvolutional, rank=config['architecture']['rank'])
     mlflow.log_params(config['architecture'])
     mlflow.log_params(config['data'])
     mlflow.log_params(config['optimizer'])
@@ -57,11 +59,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Train a surrogate of the inverse of the Gauss-Newton matrix"
     )
-    # parser.add_argument("dim", type=int, help="state dimension")
-    # parser.add_argument("training_data", type=str, help="training data")
     parser.add_argument("--config", type=str)
+    parser.add_argument("--exp-name", type=str, default="expname")
     args = parser.parse_args()
 
     conf = OmegaConf.load(args.config)
-
+    # print('-- loading environment variables')
+    # load_dotenv('../.env')
+    # envs = dotenv_values("../.env")
+    # print('-- loaded environment variables')
+    # print(envs)
+    # print(f"{os.environ['USERNAME']}")
+    # print(f"{os.environ['MLFLOW_TRACKING_URI']}")
+    mlflow.set_experiment(args.exp_name)
+    print(mlflow.get_tracking_uri())
     main(conf)

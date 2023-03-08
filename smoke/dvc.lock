@@ -19,14 +19,17 @@ stages:
         model.output: raw_data/data.pkl
         model.window: 10
   smoke_train:
-    cmd: python3.8 training_smoke.py --config config_smoke.yaml
+    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train
     deps:
-    - path: config_smoke.yaml
-      md5: 94c419f3df81ea2bfda2f1f7953cc825
-      size: 167
-    - path: raw_data/data.pkl
+    - path: ../raw_data/data.pkl
       md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620
+    - path: config_smoke.yaml
+      md5: 0fbaef2799d8b6a9c8a3a0c602817481
+      size: 169
+    - path: training_smoke.py
+      md5: 2530772e4ccbe3a783a78f1d1b9a2f92
+      size: 2961
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:

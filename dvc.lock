@@ -22,8 +22,8 @@ stages:
     cmd: python3.8 training_smoke.py --config config_smoke.yaml
     deps:
     - path: config_smoke.yaml
-      md5: a05390e4c52d47a57f898a18bb38136c
-      size: 166
+      md5: 94c419f3df81ea2bfda2f1f7953cc825
+      size: 167
     - path: raw_data/data.pkl
       md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620

@@ -15,6 +15,9 @@ from .base_models import (
     eye_like,
     bgramschmidt
 )
+
+from .convolutional_nn import ConvLayersSVD
+
 from .regularization import Regularization
 
 
@@ -90,7 +93,7 @@ class SVDPrec(BaseModel):
         return S
 
     def construct_approx(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.forward(x) # Batch_dimension x (state dimension + 1) x rank
+        S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank) # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         eli = torch.exp(li)
         qi = torch.linalg.qr(vi)[0]
@@ -98,7 +101,7 @@ class SVDPrec(BaseModel):
         return H
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.forward(x) # Batch_dimension x (state dimension + 1) x rank
+        S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank) # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         # eli = torch.exp(-li)
         eli = torch.exp(-li)
@@ -151,6 +154,26 @@ class SVDPrec(BaseModel):
         elif self.datatype == 'iterable':
             return self._common_step_iterable(batch, batch_idx, stage)
 
+class SVDConvolutional(SVDPrec):
+    def __init__(
+        self,
+        state_dimension: int,
+        rank: int,
+        config: dict,
+    ) -> None:
+        """
+        config: dict with keys n_layers, neurons_per_layer, batch_size,
+        """
+        # super().__init__()
+        super().__init__(state_dimension, rank, config)
+        self.rank = rank
+        self.n_out = int(rank * (state_dimension + 1))
+
+
+        ## Construction of the MLP
+        ### Construction of the input layer
+
+        self.layers = ConvLayersSVD(state_dimension, n_latent=rank, kernel_size=3)
 
 
 

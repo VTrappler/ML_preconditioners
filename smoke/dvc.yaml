@@ -11,6 +11,8 @@ stages:
         - model.nsamples
         - model.window
         - model.output
+    outs:
+    - raw_data/data.pkl
 
   smoke_train:
     cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train
@@ -18,11 +20,6 @@ stages:
     - training_smoke.py
     - config_smoke.yaml
     - ../raw_data/data.pkl
-
-  smoke_hpo:
-    cmd: python3 hpo_smoke.py
-    deps:
-    - raw_data/data.pkl
 
 params:
   - data_params.yaml

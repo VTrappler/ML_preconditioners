@@ -6,11 +6,12 @@ stages:
     - prec_data/data.py
     - prec_data/data_params.yaml
     params:
-    - model.dimension
-    - model.nsamples
-    - model.window
-    - model.output
-    
+      - prec_data/data_params.yaml:
+        - model.dimension
+        - model.nsamples
+        - model.window
+        - model.output
+
   smoke_train:
     cmd: python3.8 training_smoke.py --config config_smoke.yaml
     deps:

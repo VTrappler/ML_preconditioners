@@ -12,6 +12,12 @@ stages:
     - path: prec_data/data_params.yaml
       md5: 0cc02053f8c6444a80cc40e702d5d8c9
       size: 82
+    params:
+      prec_data/data_params.yaml:
+        model.dimension: 20
+        model.nsamples: 5000
+        model.output: raw_data/data.pkl
+        model.window: 10
   smoke_train:
     cmd: python3.8 training_smoke.py --config config_smoke.yaml
     deps:

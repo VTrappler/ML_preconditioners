@@ -31,7 +31,7 @@ from prec_data.data import TangentLinearDataModule, LorenzTLVectorIterableDataMo
 import prec_models.models as models
 import prec_models.models_unstructured as models_unstructured
 
-from models import (
+from prec_models.models import (
     LimitedMemoryPrecLinearOperator,
     LimitedMemoryPrecRegularized,
     LimitedMemoryPrecSym,

@@ -1,32 +1,36 @@
 schema: '2.0'
 stages:
   generate_data:
-    cmd: python3.8 prec_data/data_generation.py --config prec_data/data_params.yaml
+    cmd: python3.8 ../prec_data/data_generation.py --config data_params.yaml
     deps:
-    - path: prec_data/data.py
+    - path: ../prec_data/data.py
       md5: 023fc4af159a5a2904c089170a6a42fb
       size: 13099
-    - path: prec_data/data_generation.py
+    - path: ../prec_data/data_generation.py
       md5: c1c86e7432d8f3dcd604bdec06a6f9d8
       size: 3939
-    - path: prec_data/data_params.yaml
+    - path: data_params.yaml
       md5: 0cc02053f8c6444a80cc40e702d5d8c9
       size: 82
     params:
-      prec_data/data_params.yaml:
+      data_params.yaml:
         model.dimension: 20
         model.nsamples: 5000
         model.output: raw_data/data.pkl
         model.window: 10
+    outs:
+    - path: ../raw_data/data.pkl
+      md5: a600b8d7e828a5587f9718ebc8f02049
+      size: 169322620
   smoke_train:
-    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train
+    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - path: ../raw_data/data.pkl
       md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620
     - path: config_smoke.yaml
-      md5: 0fbaef2799d8b6a9c8a3a0c602817481
-      size: 169
+      md5: 90630f9848178bd1bc882d79cf64a0f9
+      size: 171
     - path: training_smoke.py
       md5: 35b48827fc36467de2771d36f4c0c877
       size: 2657

@@ -1,9 +1,8 @@
-
 stages:
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:
-    - raw_data/data.pkl
+    - ../raw_data/data.pkl
     
 params:
   - data_params.yaml

@@ -6,16 +6,16 @@ stages:
     - ../prec_data/data.py
     - data_params.yaml
     params:
-      - smoke/data_params.yaml:
+      - data_params.yaml:
         - model.dimension
         - model.nsamples
         - model.window
         - model.output
     outs:
-    - raw_data/data.pkl
+    - ../raw_data/data.pkl
 
   smoke_train:
-    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train
+    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - training_smoke.py
     - config_smoke.yaml

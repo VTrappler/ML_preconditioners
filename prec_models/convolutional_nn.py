@@ -14,6 +14,10 @@ def construct_conv1D(n_in, n_c, kernel_size):
         torch.nn.LeakyReLU(),
         torch.nn.Conv1d(
             n_c, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
+        ),        
+        torch.nn.LeakyReLU(),
+        torch.nn.Conv1d(
+            n_c, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
         )
     )
     return layers_vec
@@ -23,6 +27,10 @@ def construct_conv1D_singularvalue(n_in, n_c, kernel_size):
     layers_vec = torch.nn.Sequential(
         torch.nn.Conv1d(
             1, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
+        ),
+        torch.nn.LeakyReLU(),
+        torch.nn.Conv1d(
+            n_c, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
         ),
         torch.nn.LeakyReLU(),
         torch.nn.Conv1d(

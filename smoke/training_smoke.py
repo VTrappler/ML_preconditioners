@@ -13,12 +13,14 @@ from pytorch_lightning.loggers import TensorBoardLogger
 import mlflow
 from omegaconf import OmegaConf
 from os.path import join, dirname
-from dotenv import load_dotenv, dotenv_values
+# from dotenv import load_dotenv, dotenv_values
 def construct_model_class(cl, **kwargs):
     class dummy(cl):
         __init__ = functools.partialmethod(cl.__init__, **kwargs)
 
     return dummy
+
+
 
 
 def main(config):
@@ -64,6 +66,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     conf = OmegaConf.load(args.config)
+
+
+
     # print('-- loading environment variables')
     # load_dotenv('../.env')
     # envs = dotenv_values("../.env")

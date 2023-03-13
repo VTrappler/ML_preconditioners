@@ -1,0 +1,5 @@
+schema: '2.0'
+stages:
+  smoke_hpo:
+    cmd: source ../.set_environment_variables.sh && python3.10 hpo_smoke.py --config
+      hpo_config.yaml

@@ -1,0 +1,17 @@
+mlflow:
+  experiment_name: hpo_smoke
+  tracking_uri: ${oc.env:MLFLOW_TRACKING_URI}
+data:
+  dimension: 20
+  data_path: /root/raw_data/data.pkl
+architecture:
+  rank: 5
+  n_layers: ${choice:3, 4, 5}
+  neurons_per_layer: ${choice:32,64,128}
+  batch_size: ${choice:16,32,64}
+optimizer:
+  lr: ${loguniform:1e-6,1e-3}
+  epochs: 20
+tuner:
+  max_concurrent_trials: 2
+  num_samples: 5

@@ -1,4 +1,4 @@
-from lorenz_wrapper import LorenzWrapper
+from DA_PoC.wrappers.lorenz_wrapper import LorenzWrapper
 
 # from optimization import low_rank_approx
 import tqdm

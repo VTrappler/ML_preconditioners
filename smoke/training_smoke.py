@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import numpy as np
 import argparse
 import functools
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import CSVLogger
 import mlflow
 from omegaconf import OmegaConf
 from os.path import join, dirname
@@ -43,7 +43,7 @@ def main(config):
         splitting_lengths=[0.8, 0.1, 0.1],
         shuffling=True,
     )
-    trainer = pl.Trainer(max_epochs=config['optimizer']['epochs'])
+    trainer = pl.Trainer(max_epochs=config['optimizer']['epochs'], logger=CSVLogger('/home/smoke/'))
     test_input = torch.normal(0, 1, size=(config['architecture']["batch_size"], state_dimension))
     forw = model.forward(test_input)    
     print(f"{forw.shape=}")
@@ -66,16 +66,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     conf = OmegaConf.load(args.config)
-
-
-
-    # print('-- loading environment variables')
-    # load_dotenv('../.env')
-    # envs = dotenv_values("../.env")
-    # print('-- loaded environment variables')
-    # print(envs)
-    # print(f"{os.environ['USERNAME']}")
-    # print(f"{os.environ['MLFLOW_TRACKING_URI']}")
     mlflow.set_experiment(args.exp_name)
     print(mlflow.get_tracking_uri())
     main(conf)

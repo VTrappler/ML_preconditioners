@@ -1,6 +1,6 @@
 stages:
   generate_data:
-    cmd: python3.8 ../prec_data/data_generation.py --config data_params.yaml
+    cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
     - ../prec_data/data_generation.py
     - ../prec_data/data.py
@@ -12,14 +12,14 @@ stages:
         - model.window
         - model.output
     outs:
-    - ../raw_data/data.pkl
+    - /root/raw_data/data.pkl
 
   smoke_train:
-    cmd: python3.8 training_smoke.py --config config_smoke.yaml --exp-name smoke_train_tr
+    cmd: source ../.set_environment_variables.sh && python3.10 training_smoke.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - training_smoke.py
     - config_smoke.yaml
-    - ../raw_data/data.pkl
+    - /root/raw_data/data.pkl
 
 params:
   - data_params.yaml

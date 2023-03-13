@@ -1,6 +1,6 @@
 data:
   dimension: 20
-  data_path: ../raw_data/data.pkl
+  data_path: /root/raw_data/data.pkl
 architecture:
   rank: 5
   n_layers: 4

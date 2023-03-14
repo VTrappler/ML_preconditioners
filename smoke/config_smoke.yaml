@@ -2,7 +2,7 @@ data:
   dimension: 20
   data_path: /root/raw_data/data.pkl
 architecture:
-  rank: 5
+  rank: 20
   n_layers: 4
   neurons_per_layer: 128
   batch_size: 32

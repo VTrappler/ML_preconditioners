@@ -15,7 +15,7 @@ stages:
     - /root/raw_data/data.pkl
 
   smoke_train:
-    cmd: source ../.set_environment_variables.sh && python3.10 training_smoke.py --config config_smoke.yaml --exp-name smoke_train_tr
+    cmd: source ../.set_environment_variables.sh && python3.10 training.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - training_smoke.py
     - config_smoke.yaml

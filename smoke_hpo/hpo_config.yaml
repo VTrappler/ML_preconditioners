@@ -11,7 +11,7 @@ architecture:
   batch_size: ${choice:16,32,64}
 optimizer:
   lr: ${loguniform:1e-6,1e-3}
-  epochs: 20
+  epochs: 200
 tuner:
   max_concurrent_trials: 2
-  num_samples: 5
+  num_samples: 10

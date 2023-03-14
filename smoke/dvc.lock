@@ -23,18 +23,18 @@ stages:
       md5: df313e24f719d0a6ab865e17605fc9ce
       size: 338645130
   smoke_train:
-    cmd: source ../.set_environment_variables.sh && python3.10 training_smoke.py --config
+    cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
       config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - path: /root/raw_data/data.pkl
       md5: df313e24f719d0a6ab865e17605fc9ce
       size: 338645130
     - path: config_smoke.yaml
-      md5: d63b8793eceb3bbbdc0f790aea54b3dc
-      size: 174
-    - path: training_smoke.py
-      md5: 77c5cfbf05d5b7da880b92059001ed58
-      size: 2414
+      md5: 0057562ae2c4eb32e8f817f5310ed878
+      size: 173
+    - path: training.py
+      md5: 9a911aba3c83bf59a19c65b4dd96e466
+      size: 2655
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:

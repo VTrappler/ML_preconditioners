@@ -53,6 +53,10 @@ def main(config):
     #     print(f"{mats.shape=}")
     #     print(f"{mats}")
     trainer.fit(model, datamodule)
+    print(trainer.logged_metrics)
+    with open("/home/smoke/metrics.yaml", 'w') as fp:
+        metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
+        OmegaConf.save(config=metrics_dict, f=fp)
     signature = mlflow.models.signature.infer_signature(test_input.detach().numpy(), forw.detach().numpy())
     mlflow.pytorch.log_model(model, "smoke_model", signature=signature)
 
@@ -68,4 +72,5 @@ if __name__ == "__main__":
     conf = OmegaConf.load(args.config)
     mlflow.set_experiment(args.exp_name)
     print(mlflow.get_tracking_uri())
+    print(os.getcwd())
     main(conf)

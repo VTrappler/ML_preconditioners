@@ -1,0 +1,4 @@
+Loss/train_loss: 0.025739913806319237
+Loss/train_mse_approx: 0.025739913806319237
+Loss/val_loss: 0.023204058408737183
+Loss/val_mse_approx: 0.023204058408737183

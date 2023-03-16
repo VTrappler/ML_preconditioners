@@ -33,11 +33,13 @@ def main(config):
     data_path = config["data"]["data_path"]
 
     torch_model = construct_model_class(SVDPrec, rank=config["architecture"]["rank"])
+    model = torch_model(state_dimension=state_dimension, config=config["architecture"])
+
     mlflow.log_params(config["architecture"])
     mlflow.log_params(config["data"])
+    config["optimizer"].pop("lr", None)
     mlflow.log_params(config["optimizer"])
 
-    model = torch_model(state_dimension=state_dimension, config=config["architecture"])
     datamodule = TangentLinearDataModule(
         path=data_path,
         batch_size=config["architecture"]["batch_size"],
@@ -63,10 +65,15 @@ def main(config):
     print(trainer.logged_metrics)
     run = mlflow.active_run()
     print("Active run_id: {}".format(run.info.run_id))
+
     with open("/home/smoke/metrics.yaml", "w") as fp:
         metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
         metrics_dict["run_id"] = run.info.run_id
         OmegaConf.save(config=metrics_dict, f=fp)
+
+    with open("/home/smoke/mlflow_run_id.yaml", "w") as fh:
+        run_id_dict = {"run_id": run.info.run_id}
+        OmegaConf.save(config=run_id_dict, f=fh)
     signature = mlflow.models.signature.infer_signature(
         test_input.detach().numpy(), forw.detach().numpy()
     )

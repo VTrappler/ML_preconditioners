@@ -22,21 +22,19 @@ stages:
       - /root/raw_data/data.pkl
     metrics:
       - metrics.yaml
-    # outs:
-    #   - metrics.yaml
+    outs:
+      - mlflow_run_id.yaml
     # plots:
     #   - /root/log_dump/smoke/lightning_logs/smoke/metrics.csv
     #     # x: epoch
     #     # y: [Loss/train_loss, Loss/val_loss]
 
   inference:
+    deps:
+      - mlflow_run_id.yaml
     vars:
-      - metrics.yaml:run_id
+      - mlflow_run_id.yaml
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
-    # outs:
-    #   - /home/figures/condition_numbers_${run_id}.png
-    #   - /home/figures/inference_approx_${run_id}.png
-    #   - /home/figures/inference_precondition_${run_id}.png
     plots:
       - /home/figures/condition_numbers_${run_id}.png
       - /home/figures/inference_approx_${run_id}.png

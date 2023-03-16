@@ -56,28 +56,32 @@ stages:
       md5: f955f779dd1d2a6f5fadaee43eb28127
       size: 340245130
     - path: config_smoke.yaml
-      md5: f0bf2a756b17841c9ad139c36ef71cca
-      size: 174
+      md5: 31c528fe126f9a2ef166aec4767b58b8
+      size: 176
     - path: training.py
-      md5: 79f476fc506221b1eb96b91c2ae4bed0
-      size: 2948
+      md5: 17f20cae0887852d316376abd0f0eac0
+      size: 3150
     outs:
-    - path: /root/log_dump/smoke/lightning_logs/smoke/metrics.csv
-      md5: 62261441e640f7ec160c4c865e1048b3
-      size: 616
     - path: metrics.yaml
-      md5: 564bcf816d4e1834eaeef306126ed2a8
-      size: 189
+      md5: ad1cb7b3c469f8f03615008cb3bb00b0
+      size: 191
+    - path: mlflow_run_id.yaml
+      md5: 4c5f5203364db2ede4fa6710d3ed58bb
+      size: 41
   inference:
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id
-      43ce90cd9b044b689ab2dc195b37ddfa
+      df94d4a31c3b48e883fe0b9673030685
+    deps:
+    - path: mlflow_run_id.yaml
+      md5: 4c5f5203364db2ede4fa6710d3ed58bb
+      size: 41
     outs:
-    - path: ../figures/condition_numbers_43ce90cd9b044b689ab2dc195b37ddfa.png
-      md5: 7268eb81e86878f5dc36148c8be05ceb
-      size: 52733
-    - path: ../figures/inference_approx_43ce90cd9b044b689ab2dc195b37ddfa.png
-      md5: 34115e4384cd2f96ab403d93246ef6d7
-      size: 60859
-    - path: ../figures/inference_precondition_43ce90cd9b044b689ab2dc195b37ddfa.png
-      md5: 515ec68910ab215ca6c2db9aa34f3ae3
-      size: 49430
+    - path: ../figures/condition_numbers_df94d4a31c3b48e883fe0b9673030685.png
+      md5: 9314a36860b9b70381792a7c146d5a22
+      size: 32441
+    - path: ../figures/inference_approx_df94d4a31c3b48e883fe0b9673030685.png
+      md5: 376ff3f90935c341a55dfb9709835a2e
+      size: 60184
+    - path: ../figures/inference_precondition_df94d4a31c3b48e883fe0b9673030685.png
+      md5: 8622303946c21cf103c78e23fdf43f85
+      size: 45989

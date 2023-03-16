@@ -3,7 +3,6 @@ stages:
     cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
       - ../prec_data/data_generation.py
-      - ../prec_data/data.py
       - data_params.yaml
     params:
       - data_params.yaml:
@@ -19,24 +18,29 @@ stages:
     deps:
       - training.py
       - config_smoke.yaml
+      - ../prec_data/data.py
       - /root/raw_data/data.pkl
     metrics:
       - metrics.yaml
+    # outs:
+    #   - metrics.yaml
+    # plots:
+    #   - /root/log_dump/smoke/lightning_logs/smoke/metrics.csv
+    #     # x: epoch
+    #     # y: [Loss/train_loss, Loss/val_loss]
 
   inference:
     vars:
-      - metrics.yaml
+      - metrics.yaml:run_id
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
-    deps:
-      - metrics.yaml
-
-# plots:
-#   - /home/smoke/lightning_logs/version_3/metrics.csv:
-#     x: epoch
-#     y: accuracy
-#     title: Displaying accuracy
-#     x_label: This is epoch
-#     y_label: This is accuracy
+    # outs:
+    #   - /home/figures/condition_numbers_${run_id}.png
+    #   - /home/figures/inference_approx_${run_id}.png
+    #   - /home/figures/inference_precondition_${run_id}.png
+    plots:
+      - /home/figures/condition_numbers_${run_id}.png
+      - /home/figures/inference_approx_${run_id}.png
+      - /home/figures/inference_precondition_${run_id}.png
 
 params:
   - data_params.yaml

@@ -34,6 +34,7 @@ class EnforcePositivity(nn.Module):
 def _eye_like(tensor):
     return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
 
+
 def eye_like(tensor):
     b = tensor.shape[0]
     eye = torch.empty_like(tensor)
@@ -41,9 +42,11 @@ def eye_like(tensor):
         eye[i, :, :] = torch.eye(tensor.shape[-1])
     return eye
 
+
 def batch_identity_matrix(batch_size, dimension):
     In = torch.eye(dimension).reshape(-1, dimension, dimension).repeat(batch_size, 1, 1)
     return In
+
 
 def compose_triangular_matrix(arr: torch.Tensor) -> torch.Tensor:
     arr = torch.atleast_2d(arr)
@@ -90,11 +93,14 @@ def bgramschmidt(bV):
     """Batch orthonormalisation of rank vectors, each of dimension ndim
     bV.shape = [batch, ndim, rank]
     """
+
     def bnormalize(V):
         return V / V.norm(dim=1).view(V.shape[0], 1)
-        
+
     def bproj(bU, bV):
-        return (torch.einsum("bn,bn->b", bU, bV) / bU.norm(dim=1)**2).view(bU.shape[0], 1) * bU
+        return (torch.einsum("bn,bn->b", bU, bV) / bU.norm(dim=1) ** 2).view(
+            bU.shape[0], 1
+        ) * bU
 
     bU = torch.zeros_like(bV)
     bU[:, :, 0] = bnormalize(bV[:, :, 0])
@@ -104,8 +110,6 @@ def bgramschmidt(bV):
             bU[:, :, i] -= bproj(bU[:, :, j], bV[:, :, i])
         bU[:, :, i] = bnormalize(bU[:, :, i])
     return bU
-
-
 
 
 class BaseModel(pl.LightningModule):
@@ -171,9 +175,7 @@ class BaseModel(pl.LightningModule):
 
     def _common_step(self, batch, batch_idx, stage):
         x, forw, tlm = batch
-        GTG = torch.bmm(
-            tlm.mT, tlm
-        )  # Get the GN approximation of the Hessian matrix
+        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
 
         x = x.view(x.size(0), -1)
         L_lower = self.forward(x)
@@ -202,20 +204,20 @@ class BaseModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._common_step(batch, batch_idx, "test")
 
-    def on_after_backward(self):
-        # self.gradient_histograms_adder()
-        pass
+    # def on_after_backward(self):
+    #     # self.gradient_histograms_adder()
+    #     pass
 
-    def training_epoch_end(self, outputs):
-        # self.weight_histograms_adder()
-        pass
+    # def on_train_epoch_end(self, outputs):
+    #     # self.weight_histograms_adder()
+    #     pass
 
-    def validation_epoch_end(self, outputs):
-        # self.weight_histograms_adder()
-        batch_size = len(outputs[0]["gtg"])
-        # self.target_imshow(outputs, batch_size=batch_size)
-        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
-        # self.log("ptl/val_loss", avg_loss)
+    # def validation_epoch_end(self, outputs):
+    #     # self.weight_histograms_adder()
+    #     batch_size = len(outputs[0]["gtg"])
+    #     # self.target_imshow(outputs, batch_size=batch_size)
+    #     avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
+    #     # self.log("ptl/val_loss", avg_loss)
 
     def configure_optimizers(self):
         #     def configure_optimizers(self):
@@ -227,7 +229,9 @@ class BaseModel(pl.LightningModule):
         return [optimizer], [scheduler]
 
 
-def construct_MLP(n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int) -> nn.Module:
+def construct_MLP(
+    n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int
+) -> nn.Module:
     """Construct a Fully connected MultiLayerPerceptron (LeakyReLU activation)
 
     :param n_in: dimension of input
@@ -254,9 +258,14 @@ def construct_MLP(n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int) 
 
 
 def Conv1D_periodic(kernel_size):
-    return torch.nn.Conv1d(1, 1, kernel_size=kernel_size, padding=kernel_size//2, padding_mode='circular')
+    return torch.nn.Conv1d(
+        1, 1, kernel_size=kernel_size, padding=kernel_size // 2, padding_mode="circular"
+    )
 
-def construct_MLP(n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int) -> nn.Module:
+
+def construct_MLP(
+    n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int
+) -> nn.Module:
     """Construct a Fully connected MultiLayerPerceptron (LeakyReLU activation)
 
     :param n_in: dimension of input

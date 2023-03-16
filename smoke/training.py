@@ -44,9 +44,11 @@ def main(config):
         num_workers=4,
         splitting_lengths=[0.8, 0.1, 0.1],
         shuffling=True,
+        normalization=False,
     )
     trainer = pl.Trainer(
-        max_epochs=config["optimizer"]["epochs"], logger=CSVLogger("/home/smoke/")
+        max_epochs=config["optimizer"]["epochs"],
+        logger=CSVLogger("/root/log_dump/smoke/", version="smoke"),
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)

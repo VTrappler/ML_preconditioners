@@ -1,12 +1,14 @@
-from DA_PoC.wrappers.lorenz_wrapper import LorenzWrapper
+from DA_PoC.dynamical_systems.lorenz_numerical_model import LorenzWrapper
 
 # from optimization import low_rank_approx
-import tqdm
 import argparse
 import pickle
 import numpy as np
 from omegaconf import OmegaConf
+from tqdm.rich import tqdm, TqdmExperimentalWarning, trange
+import warnings
 
+warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 # def generate_training_pair(x):
 #     forw, G = forward_TLM(x, return_base=True)
 #     # G, grtlm = grad_TLM(x)
@@ -63,7 +65,7 @@ def generate_training(lorenz, x0=None, Nobs=100):
         x0 = lorenz.initial_state
     train = []
     x = x0
-    for i in tqdm.trange(Nobs):
+    for i in trange(Nobs):
         train.append(generate_training_pair(lorenz, x))
         x = generate_new_state(x)
     return train
@@ -74,7 +76,7 @@ def generate_training_x(lorenz, x0=None, Nobs=100):
         x0 = lorenz.initial_state
     train = []
     x = x0
-    for i in tqdm.trange(Nobs):
+    for i in trange(Nobs):
         train.append(generate_training_pair_x(lorenz, x))
         x = generate_new_state(lorenz, x)
     return train
@@ -88,7 +90,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate the training data for the Lorenz model"
     )
-    parser.add_argument('--config', help="configuration file *.yml", type=str, required=False, default='data_params.yml')
+    parser.add_argument(
+        "--config",
+        help="configuration file *.yml",
+        type=str,
+        required=False,
+        default="data_params.yml",
+    )
     parser.add_argument("-dim", type=int, help="State dimension of the Lorenz model")
     parser.add_argument("-n_total_obs", type=int, help="Number of observations")
     parser.add_argument("-N", type=int, help="Number of training data to save")
@@ -103,9 +111,9 @@ if __name__ == "__main__":
         conf = OmegaConf.load(args.config)
         dim = conf.model["dimension"]
         nsamples = conf.model["nsamples"]
-        window = conf.model['window']
+        window = conf.model["window"]
         if "output" in conf.model.keys():
-            target = conf.model['output']
+            target = conf.model["output"]
         else:
             target = f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
 
@@ -115,14 +123,12 @@ if __name__ == "__main__":
         window = args.n_total_obs
         target = args.target
 
-
-
-    print(f"Training tuples to save: {args.N}")
+    print(f"Number of training tuples to save: {nsamples}")
     print(f"into {target}")
     lorenz = LorenzWrapper(dim)
     lorenz.eps = 1e-8
     lorenz.create_and_burn_truth()
-    
+
     lorenz.generate_obs(n_total_obs=window, H=lambda x: x)
 
     if args.dummy:

@@ -4,24 +4,24 @@ stages:
     cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
     - path: ../prec_data/data.py
-      md5: 36dc33ad40eca988ec0ab37a57a199dc
-      size: 13804
+      md5: 7e1ffcaeb9bfa6a723331960a3a9e1b1
+      size: 13353
     - path: ../prec_data/data_generation.py
-      md5: 6d417a27a1d53bb35b8e0f14ee3fd09a
-      size: 3986
+      md5: 0736bc24783c4a8aca0ce6aa46d4d5fa
+      size: 4147
     - path: data_params.yaml
-      md5: 942a05e72250dcf498568a63d7d9ceaf
+      md5: 640b3368012429056caf77c7ba9022fd
       size: 87
     params:
       data_params.yaml:
         model.dimension: 20
-        model.nsamples: 5000
+        model.nsamples: 10000
         model.output: /root/raw_data/data.pkl
         model.window: 10
     outs:
     - path: /root/raw_data/data.pkl
-      md5: 32899c0897a8561c9293a5b453d55de1
-      size: 170122620
+      md5: f955f779dd1d2a6f5fadaee43eb28127
+      size: 340245130
   smoke_train:
     cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
       config_smoke.yaml --exp-name smoke_train_tr
@@ -49,23 +49,35 @@ stages:
     cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
       config_smoke.yaml --exp-name smoke_train_tr
     deps:
+    - path: ../prec_data/data.py
+      md5: 30b58de90114f083478c1430cfc979d4
+      size: 13355
     - path: /root/raw_data/data.pkl
-      md5: 32899c0897a8561c9293a5b453d55de1
-      size: 170122620
+      md5: f955f779dd1d2a6f5fadaee43eb28127
+      size: 340245130
     - path: config_smoke.yaml
-      md5: 9f9d6367c3370c09c216897b17a620ae
-      size: 175
+      md5: f0bf2a756b17841c9ad139c36ef71cca
+      size: 174
     - path: training.py
-      md5: ac1caa3876bec7846f24650c14f27c37
-      size: 2884
+      md5: 79f476fc506221b1eb96b91c2ae4bed0
+      size: 2948
     outs:
+    - path: /root/log_dump/smoke/lightning_logs/smoke/metrics.csv
+      md5: 62261441e640f7ec160c4c865e1048b3
+      size: 616
     - path: metrics.yaml
-      md5: 93a7f2c241368e90eda13b511acff4ab
-      size: 197
+      md5: 564bcf816d4e1834eaeef306126ed2a8
+      size: 189
   inference:
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id
-      f336884d1404421abb7edb2e5f3a9198
-    deps:
-    - path: metrics.yaml
-      md5: 93a7f2c241368e90eda13b511acff4ab
-      size: 197
+      43ce90cd9b044b689ab2dc195b37ddfa
+    outs:
+    - path: ../figures/condition_numbers_43ce90cd9b044b689ab2dc195b37ddfa.png
+      md5: 7268eb81e86878f5dc36148c8be05ceb
+      size: 52733
+    - path: ../figures/inference_approx_43ce90cd9b044b689ab2dc195b37ddfa.png
+      md5: 34115e4384cd2f96ab403d93246ef6d7
+      size: 60859
+    - path: ../figures/inference_precondition_43ce90cd9b044b689ab2dc195b37ddfa.png
+      md5: 515ec68910ab215ca6c2db9aa34f3ae3
+      size: 49430

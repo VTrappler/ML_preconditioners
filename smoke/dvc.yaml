@@ -2,26 +2,41 @@ stages:
   generate_data:
     cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
-    - ../prec_data/data_generation.py
-    - ../prec_data/data.py
-    - data_params.yaml
+      - ../prec_data/data_generation.py
+      - ../prec_data/data.py
+      - data_params.yaml
     params:
       - data_params.yaml:
-        - model.dimension
-        - model.nsamples
-        - model.window
-        - model.output
+          - model.dimension
+          - model.nsamples
+          - model.window
+          - model.output
     outs:
-    - /root/raw_data/data.pkl
+      - /root/raw_data/data.pkl
 
-  smoke_train:
+  train:
     cmd: source ../.set_environment_variables.sh && python3.10 training.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
-    - training.py
-    - config_smoke.yaml
-    - /root/raw_data/data.pkl
+      - training.py
+      - config_smoke.yaml
+      - /root/raw_data/data.pkl
     metrics:
-    - metrics.yaml
+      - metrics.yaml
+
+  inference:
+    vars:
+      - metrics.yaml
+    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
+    deps:
+      - metrics.yaml
+
+# plots:
+#   - /home/smoke/lightning_logs/version_3/metrics.csv:
+#     x: epoch
+#     y: accuracy
+#     title: Displaying accuracy
+#     x_label: This is epoch
+#     y_label: This is accuracy
 
 params:
   - data_params.yaml

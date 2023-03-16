@@ -4,40 +4,68 @@ stages:
     cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
     - path: ../prec_data/data.py
-      md5: 023fc4af159a5a2904c089170a6a42fb
-      size: 13099
+      md5: 36dc33ad40eca988ec0ab37a57a199dc
+      size: 13804
     - path: ../prec_data/data_generation.py
-      md5: 5c8b59afded801292baa508739b0026f
-      size: 3955
+      md5: 6d417a27a1d53bb35b8e0f14ee3fd09a
+      size: 3986
     - path: data_params.yaml
-      md5: 640b3368012429056caf77c7ba9022fd
+      md5: 942a05e72250dcf498568a63d7d9ceaf
       size: 87
     params:
       data_params.yaml:
         model.dimension: 20
-        model.nsamples: 10000
+        model.nsamples: 5000
         model.output: /root/raw_data/data.pkl
         model.window: 10
     outs:
     - path: /root/raw_data/data.pkl
-      md5: df313e24f719d0a6ab865e17605fc9ce
-      size: 338645130
+      md5: 32899c0897a8561c9293a5b453d55de1
+      size: 170122620
   smoke_train:
     cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
       config_smoke.yaml --exp-name smoke_train_tr
     deps:
     - path: /root/raw_data/data.pkl
-      md5: df313e24f719d0a6ab865e17605fc9ce
-      size: 338645130
+      md5: e51de21bb3af09af8e6b176cccc5400c
+      size: 340245130
     - path: config_smoke.yaml
-      md5: 0057562ae2c4eb32e8f817f5310ed878
-      size: 173
+      md5: 9c9223178aba5ed5d5dbefadc65242f7
+      size: 176
     - path: training.py
-      md5: 9a911aba3c83bf59a19c65b4dd96e466
-      size: 2655
+      md5: 2097ef605bb16fe30672ec99e1f5a279
+      size: 2698
+    outs:
+    - path: metrics.yaml
+      md5: 4f6c619706948b359c6ee13581011309
+      size: 156
   smoke_hpo:
     cmd: python3 hpo_smoke.py
     deps:
     - path: raw_data/data.pkl
       md5: a600b8d7e828a5587f9718ebc8f02049
       size: 169322620
+  train:
+    cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
+      config_smoke.yaml --exp-name smoke_train_tr
+    deps:
+    - path: /root/raw_data/data.pkl
+      md5: 32899c0897a8561c9293a5b453d55de1
+      size: 170122620
+    - path: config_smoke.yaml
+      md5: 9f9d6367c3370c09c216897b17a620ae
+      size: 175
+    - path: training.py
+      md5: ac1caa3876bec7846f24650c14f27c37
+      size: 2884
+    outs:
+    - path: metrics.yaml
+      md5: 93a7f2c241368e90eda13b511acff4ab
+      size: 197
+  inference:
+    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id
+      f336884d1404421abb7edb2e5f3a9198
+    deps:
+    - path: metrics.yaml
+      md5: 93a7f2c241368e90eda13b511acff4ab
+      size: 197

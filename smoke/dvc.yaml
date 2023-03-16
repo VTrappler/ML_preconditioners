@@ -20,6 +20,14 @@ stages:
       - config_smoke.yaml
       - ../prec_data/data.py
       - /root/raw_data/data.pkl
+    params:
+      - config_smoke.yaml:
+          - data.dimension
+          - architecture.rank
+          - architecture.n_layers
+          - architecture.neurons_per_layer
+          - architecture.batch_size
+          - optimizer.epochs
     metrics:
       - metrics.yaml
     outs:
@@ -35,10 +43,11 @@ stages:
     vars:
       - mlflow_run_id.yaml
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
-    plots:
-      - /home/figures/condition_numbers_${run_id}.png
-      - /home/figures/inference_approx_${run_id}.png
-      - /home/figures/inference_precondition_${run_id}.png
+
+plots:
+  - /home/figures/condition_numbers_${run_id}.png
+  - /home/figures/inference_approx_${run_id}.png
+  - /home/figures/inference_precondition_${run_id}.png
 
 params:
   - data_params.yaml

@@ -3,9 +3,6 @@ stages:
   generate_data:
     cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
     deps:
-    - path: ../prec_data/data.py
-      md5: 7e1ffcaeb9bfa6a723331960a3a9e1b1
-      size: 13353
     - path: ../prec_data/data_generation.py
       md5: 0736bc24783c4a8aca0ce6aa46d4d5fa
       size: 4147
@@ -20,7 +17,7 @@ stages:
         model.window: 10
     outs:
     - path: /root/raw_data/data.pkl
-      md5: f955f779dd1d2a6f5fadaee43eb28127
+      md5: 9180c9bb4d4a464961acd3fff1a50d97
       size: 340245130
   smoke_train:
     cmd: source ../.set_environment_variables.sh && python3.10 training.py --config
@@ -53,35 +50,25 @@ stages:
       md5: 30b58de90114f083478c1430cfc979d4
       size: 13355
     - path: /root/raw_data/data.pkl
-      md5: f955f779dd1d2a6f5fadaee43eb28127
+      md5: 9180c9bb4d4a464961acd3fff1a50d97
       size: 340245130
     - path: config_smoke.yaml
       md5: 31c528fe126f9a2ef166aec4767b58b8
       size: 176
     - path: training.py
-      md5: 17f20cae0887852d316376abd0f0eac0
-      size: 3150
+      md5: 6f2921df1a8adef35ae202fa0305cba3
+      size: 3152
     outs:
     - path: metrics.yaml
-      md5: ad1cb7b3c469f8f03615008cb3bb00b0
-      size: 191
+      md5: 142d2fcb589dd7fd8701dda4a58ddf81
+      size: 152
     - path: mlflow_run_id.yaml
-      md5: 4c5f5203364db2ede4fa6710d3ed58bb
+      md5: 2ad10e3f5d87c8240b5256f965ad0ba0
       size: 41
   inference:
     cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id
-      df94d4a31c3b48e883fe0b9673030685
+      aeff01df074e4d5cb73c33294d30a1d4
     deps:
     - path: mlflow_run_id.yaml
-      md5: 4c5f5203364db2ede4fa6710d3ed58bb
+      md5: 2ad10e3f5d87c8240b5256f965ad0ba0
       size: 41
-    outs:
-    - path: ../figures/condition_numbers_df94d4a31c3b48e883fe0b9673030685.png
-      md5: 9314a36860b9b70381792a7c146d5a22
-      size: 32441
-    - path: ../figures/inference_approx_df94d4a31c3b48e883fe0b9673030685.png
-      md5: 376ff3f90935c341a55dfb9709835a2e
-      size: 60184
-    - path: ../figures/inference_precondition_df94d4a31c3b48e883fe0b9673030685.png
-      md5: 8622303946c21cf103c78e23fdf43f85
-      size: 45989

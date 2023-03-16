@@ -68,7 +68,7 @@ def main(config):
 
     with open("/home/smoke/metrics.yaml", "w") as fp:
         metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
-        metrics_dict["run_id"] = run.info.run_id
+        # metrics_dict["run_id"] = run.info.run_id
         OmegaConf.save(config=metrics_dict, f=fp)
 
     with open("/home/smoke/mlflow_run_id.yaml", "w") as fh:

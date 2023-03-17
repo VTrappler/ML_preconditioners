@@ -1,5 +1,5 @@
 model:
   dimension: 20
-  nsamples: 10000
+  nsamples: 20000
   window: 10
   output: /root/raw_data/data.pkl

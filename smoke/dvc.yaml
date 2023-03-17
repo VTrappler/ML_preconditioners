@@ -33,21 +33,21 @@ stages:
     outs:
       - mlflow_run_id.yaml
     # plots:
-    #   - /root/log_dump/smoke/lightning_logs/smoke/metrics.csv
-    #     # x: epoch
-    #     # y: [Loss/train_loss, Loss/val_loss]
+    #   - /root/log_dump/smoke/lightning_logs/smoke/metrics.csv:
+    # - x: epoch
+    # - y: [Loss/train_loss, Loss/val_loss]
 
-  inference:
-    deps:
-      - mlflow_run_id.yaml
-    vars:
-      - mlflow_run_id.yaml
-    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
+  # inference:
+  #   deps:
+  #     - mlflow_run_id.yaml
+  #   vars:
+  #     - mlflow_run_id.yaml
+  #   cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
 
-plots:
-  - /home/figures/condition_numbers_${run_id}.png
-  - /home/figures/inference_approx_${run_id}.png
-  - /home/figures/inference_precondition_${run_id}.png
+  #   plots:
+  #     - /home/figures/condition_numbers_${run_id}.png
+  #     - /home/figures/inference_approx_${run_id}.png
+  #     - /home/figures/inference_precondition_${run_id}.png
 
 params:
   - data_params.yaml

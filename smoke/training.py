@@ -1,27 +1,26 @@
+import shutil
 import sys
 
 sys.path.append("..")
-import os
-from prec_data.data import TangentLinearDataModule
-from prec_models.models_spectral import SVDPrec, SVDConvolutional
-from prec_models.models_unstructured import LowRank
-import torch
-import matplotlib.pyplot as plt
-import pytorch_lightning as pl
-import numpy as np
 import argparse
-import functools
-from pytorch_lightning.loggers import CSVLogger
+import os
+
 import mlflow
+import pytorch_lightning as pl
+import torch
 from omegaconf import OmegaConf
-from os.path import join, dirname
+from pytorch_lightning.loggers import CSVLogger
+
+from prec_data.data import TangentLinearDataModule
+from prec_models import construct_model_class
+from prec_models.models_spectral import SVDConvolutional, SVDPrec
+from prec_models.models_unstructured import LowRank
+
+logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
+smoke_path = os.path.join(os.sep, "home", "smoke")
+
 
 # from dotenv import load_dotenv, dotenv_values
-def construct_model_class(cl, **kwargs):
-    class dummy(cl):
-        __init__ = functools.partialmethod(cl.__init__, **kwargs)
-
-    return dummy
 
 
 def main(config):
@@ -40,6 +39,12 @@ def main(config):
     config["optimizer"].pop("lr", None)
     mlflow.log_params(config["optimizer"])
 
+    run = mlflow.active_run()
+    print("Active run_id: {}".format(run.info.run_id))
+    with open(os.path.join(smoke_path, "mlflow_run_id.yaml"), "w") as fh:
+        run_id_dict = {"run_id": run.info.run_id, "data_path": data_path}
+        OmegaConf.save(config=run_id_dict, f=fh)
+
     datamodule = TangentLinearDataModule(
         path=data_path,
         batch_size=config["architecture"]["batch_size"],
@@ -50,7 +55,7 @@ def main(config):
     )
     trainer = pl.Trainer(
         max_epochs=config["optimizer"]["epochs"],
-        logger=CSVLogger("/root/log_dump/smoke/", version="smoke"),
+        logger=CSVLogger(logs_path, version="smoke"),
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)
@@ -63,17 +68,15 @@ def main(config):
     #     print(f"{mats}")
     trainer.fit(model, datamodule)
     print(trainer.logged_metrics)
-    run = mlflow.active_run()
-    print("Active run_id: {}".format(run.info.run_id))
+    shutil.copyfile(
+        os.path.join(logs_path, "lightning_logs", "smoke", "metrics.csv"), "./logs.csv"
+    )
 
-    with open("/home/smoke/metrics.yaml", "w") as fp:
+    with open(os.path.join(smoke_path, "metrics.yaml"), "w") as fp:
         metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
         # metrics_dict["run_id"] = run.info.run_id
         OmegaConf.save(config=metrics_dict, f=fp)
 
-    with open("/home/smoke/mlflow_run_id.yaml", "w") as fh:
-        run_id_dict = {"run_id": run.info.run_id}
-        OmegaConf.save(config=run_id_dict, f=fh)
     signature = mlflow.models.signature.infer_signature(
         test_input.detach().numpy(), forw.detach().numpy()
     )

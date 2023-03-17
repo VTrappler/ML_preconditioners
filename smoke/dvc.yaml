@@ -1,9 +1,13 @@
+vars:
+  - abs_path: /home
+  - smoke_path: /home/smoke
+
 stages:
   generate_data:
-    cmd: python3.10 ../prec_data/data_generation.py --config data_params.yaml
+    cmd: python3.10 ${abs_path}/prec_data/data_generation.py --config ${smoke_path}/data_params.yaml
     deps:
-      - ../prec_data/data_generation.py
-      - data_params.yaml
+      - ${abs_path}/prec_data/data_generation.py
+      - ${smoke_path}/data_params.yaml
     params:
       - data_params.yaml:
           - model.dimension
@@ -14,7 +18,7 @@ stages:
       - /root/raw_data/data.pkl
 
   train:
-    cmd: source ../.set_environment_variables.sh && python3.10 training.py --config config_smoke.yaml --exp-name smoke_train_tr
+    cmd: source ${abs_path}/.set_environment_variables.sh && python3.10 ${smoke_path}/training.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
       - training.py
       - config_smoke.yaml
@@ -32,23 +36,25 @@ stages:
       - metrics.yaml
     outs:
       - mlflow_run_id.yaml
-    # plots:
-    #   - /root/log_dump/smoke/lightning_logs/smoke/metrics.csv:
-    # - x: epoch
-    # - y: [Loss/train_loss, Loss/val_loss]
+      - logs.csv
 
-  # inference:
-  #   deps:
-  #     - mlflow_run_id.yaml
-  #   vars:
-  #     - mlflow_run_id.yaml
-  #   cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id ${run_id}
-
-  #   plots:
-  #     - /home/figures/condition_numbers_${run_id}.png
-  #     - /home/figures/inference_approx_${run_id}.png
-  #     - /home/figures/inference_precondition_${run_id}.png
+  inference:
+    deps:
+      - mlflow_run_id.yaml
+      - training.py
+      - config_smoke.yaml
+    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id-yaml mlflow_run_id.yaml
+    plots:
+      - /home/figures/condition_numbers.png
+      - /home/figures/inference_approx.png
+      - /home/figures/inference_precondition.png
 
 params:
   - data_params.yaml
   - config_smoke.yaml
+
+plots:
+  - logs.csv:
+      template: linear
+      x: step
+      y: Loss/train_loss

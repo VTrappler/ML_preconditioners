@@ -4,7 +4,7 @@ data:
 architecture:
   rank: 15
   n_layers: 5
-  neurons_per_layer: 128
+  # neurons_per_layer: 128
   batch_size: 32
   lr: 1e-4
 optimizer:

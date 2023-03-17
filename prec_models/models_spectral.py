@@ -13,7 +13,7 @@ from .base_models import (
     construct_MLP,
     construct_model_class,
     eye_like,
-    bgramschmidt
+    bgramschmidt,
 )
 
 from .convolutional_nn import ConvLayersSVD
@@ -24,7 +24,8 @@ from .regularization import Regularization
 def outer_prod_rk(q, rk):
     batch_size, state_dimension = q.shape[0], q.shape[1]
     vv = q[:, :, rk].view(batch_size, state_dimension, 1)
-    return (vv.bmm(vv.mT))
+    return vv.bmm(vv.mT)
+
 
 def construct_deflation(q, coeff, ide):
     H = ide.clone()
@@ -33,12 +34,14 @@ def construct_deflation(q, coeff, ide):
         H = H.bmm(ide - coeff[:, k].view(batch_size, 1, 1) * outer_prod_rk(q, k))
     return H
 
+
 def construct_deflation_backward(q, coeff, ide):
     H = ide.clone()
     batch_size = q.shape[0]
     for k in range(q.shape[-1]):
-        H = H.bmm(ide - coeff[:, -k-1].view(batch_size, 1, 1) * outer_prod_rk(q, k))
+        H = H.bmm(ide - coeff[:, -k - 1].view(batch_size, 1, 1) * outer_prod_rk(q, k))
     return H
+
 
 def construct_matrix(orth_S, mu):
     """
@@ -46,17 +49,22 @@ def construct_matrix(orth_S, mu):
     """
 
     batch_size, state_dimension, rk = orth_S.shape
-    identity = torch.eye(state_dimension).view(1, state_dimension, state_dimension).expand(batch_size, -1, -1)
+    identity = (
+        torch.eye(state_dimension)
+        .view(1, state_dimension, state_dimension)
+        .expand(batch_size, -1, -1)
+    )
     sm = 0
     for i in range(rk):
         wi = orth_S[:, :, i].view(batch_size, state_dimension, 1)
-        sm += (mu[:, i].view(batch_size, 1, 1)-1) * (wi.bmm(wi.mT))
+        sm += (mu[:, i].view(batch_size, 1, 1) - 1) * (wi.bmm(wi.mT))
     return sm + identity
 
 
 def construct_matrix_USUt(orth_S, diag):
     batch_size, state_dimension, rk = orth_S.shape
     return orth_S.bmm(diag.view(batch_size, rk, 1) * orth_S.mT)
+
 
 class SVDPrec(BaseModel):
     def __init__(
@@ -93,7 +101,9 @@ class SVDPrec(BaseModel):
         return S
 
     def construct_approx(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank) # Batch_dimension x (state dimension + 1) x rank
+        S = self.layers(x).reshape(
+            len(x), self.state_dimension + 1, self.rank
+        )  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         eli = torch.exp(li)
         qi = torch.linalg.qr(vi)[0]
@@ -101,7 +111,9 @@ class SVDPrec(BaseModel):
         return H
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank) # Batch_dimension x (state dimension + 1) x rank
+        S = self.layers(x).reshape(
+            len(x), self.state_dimension + 1, self.rank
+        )  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         # eli = torch.exp(-li)
         eli = torch.exp(-li)
@@ -111,9 +123,7 @@ class SVDPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(
-            tlm.mT, tlm
-        )  # Get the GN approximation of the Hessian matrix
+        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -129,7 +139,7 @@ class SVDPrec(BaseModel):
         # loss = self.loss(y_hat, product, self.identity)
         mse_approx = self.mse(GtG_approx, GTG)
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
-        loss = mse_approx #+ 0.5 * reg
+        loss = mse_approx  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
 
@@ -142,17 +152,17 @@ class SVDPrec(BaseModel):
         GtGdx_hat = torch.bmm(GtG_approx, dx)
         mse_approx = self.mse(GtGdx_hat, GtGdx)
 
-        loss = mse_approx #+ 0.5 * reg
+        loss = mse_approx  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
         return {"loss": loss, "gtg": GtGdx.detach(), "y_hat": GtGdx_hat.detach()}
 
-
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         if self.datatype == "full":
             return self._common_step_full_norm(batch, batch_idx, stage)
-        elif self.datatype == 'iterable':
+        elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
+
 
 class SVDConvolutional(SVDPrec):
     def __init__(
@@ -169,12 +179,12 @@ class SVDConvolutional(SVDPrec):
         self.rank = rank
         self.n_out = int(rank * (state_dimension + 1))
 
-
         ## Construction of the MLP
         ### Construction of the input layer
 
-        self.layers = ConvLayersSVD(state_dimension, n_latent=rank, kernel_size=5)
-
+        self.layers = ConvLayersSVD(
+            state_dimension, n_latent=rank, kernel_size=5, n_layers=config["n_layers"]
+        )
 
 
 class DeflationPrec(BaseModel):
@@ -207,13 +217,9 @@ class DeflationPrec(BaseModel):
             self.n_out,
         )
 
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)
         return S
-
-
-
 
     # def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
     #     identity = (
@@ -244,7 +250,7 @@ class DeflationPrec(BaseModel):
     #     return B
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.forward(x) # Batch_dimension x (state dimension + 1) x rank
+        S = self.forward(x)  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         eli = torch.exp(li)
         qi = torch.linalg.qr(vi)[0]
@@ -252,14 +258,13 @@ class DeflationPrec(BaseModel):
         return H
 
     def construct_inv_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.forward(x) # Batch_dimension x (state dimension + 1) x rank
+        S = self.forward(x)  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         # eli = torch.exp(-li)
-        eli = 1/(torch.exp(li))
+        eli = 1 / (torch.exp(li))
         qi = torch.linalg.qr(vi)[0]
         Hm1 = construct_matrix(qi, eli)
         return Hm1
-
 
     def inference(self, x: torch.Tensor, data_norm=1.0) -> torch.Tensor:
         if not self.training:
@@ -267,7 +272,9 @@ class DeflationPrec(BaseModel):
         else:
             return None
 
-    def inverse_inference(self, x: torch.Tensor, shift=1.0, data_norm=1.0) -> torch.Tensor:
+    def inverse_inference(
+        self, x: torch.Tensor, shift=1.0, data_norm=1.0
+    ) -> torch.Tensor:
         if not self.training:
             return self.construct_inv_preconditioner(x.view(-1)) * data_norm
         else:
@@ -275,9 +282,7 @@ class DeflationPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(
-            tlm.mT, tlm
-        )  # Get the GN approximation of the Hessian matrix
+        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -297,14 +302,14 @@ class DeflationPrec(BaseModel):
         # # skew_sym = y_hatinv.mT - y_hatinv
         # skew_sym = S.bmm(AS.mT) - AS.bmm(S.mT)
         # loss = self.loss(y_hat, product, self.identity)
-        product = torch.bmm(y_hat, GTG) # LL^T @ G^T G
+        product = torch.bmm(y_hat, GTG)  # LL^T @ G^T G
         product_AHA = torch.bmm(GTG, product)
         mse_inv = self.mse(y_hatinv, GTG)
         mse_prod = self.mse(product, identity)
 
         mse_AHA = self.mse(product_AHA, GTG)
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
-        loss = mse_AHA #+ 0.5 * reg
+        loss = mse_AHA  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse_inv", mse_inv)
         self.log(f"Loss/{stage}_mse_prod", mse_prod)
@@ -319,6 +324,5 @@ class DeflationPrec(BaseModel):
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         if self.datatype == "full":
             return self._common_step_full_norm(batch, batch_idx, stage)
-        elif self.datatype == 'iterable':
+        elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
-

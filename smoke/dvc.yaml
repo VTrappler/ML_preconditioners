@@ -29,7 +29,6 @@ stages:
           - data.dimension
           - architecture.rank
           - architecture.n_layers
-          - architecture.neurons_per_layer
           - architecture.batch_size
           - optimizer.epochs
     metrics:

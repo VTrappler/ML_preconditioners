@@ -31,7 +31,9 @@ def main(config):
     print(f"{state_dimension=}")
     data_path = config["data"]["data_path"]
 
-    torch_model = construct_model_class(SVDPrec, rank=config["architecture"]["rank"])
+    torch_model = construct_model_class(
+        SVDConvolutional, rank=config["architecture"]["rank"]
+    )
     model = torch_model(state_dimension=state_dimension, config=config["architecture"])
 
     mlflow.log_params(config["architecture"])

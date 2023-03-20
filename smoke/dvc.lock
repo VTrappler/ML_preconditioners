@@ -53,48 +53,48 @@ stages:
       md5: 46911b2857cd7c1e3fed6420654b05ad
       size: 680490150
     - path: config_smoke.yaml
-      md5: 0b0c49a284162b296877e6cfb10c0bc7
-      size: 174
+      md5: faf616573f38de97c50fa944f79cdc1b
+      size: 173
     - path: training.py
       md5: 6b494f8095098367975ba4651ff7662f
       size: 3258
     params:
       config_smoke.yaml:
-        architecture.batch_size: 32
+        architecture.batch_size: 64
         architecture.n_layers: 6
-        architecture.rank: 20
+        architecture.rank: 10
         data.dimension: 20
-        optimizer.epochs: 500
+        optimizer.epochs: 10
     outs:
     - path: logs.csv
-      md5: 627c06f76d8339b78c87d5cc8a10d7b5
-      size: 279538
+      md5: 8ae85ef3ec03870c4f35391b05f425d3
+      size: 2848
     - path: metrics.yaml
-      md5: 986eaee608bea6624b2462574001f36c
-      size: 152
+      md5: a7ea9fd26a2e557845a0b99cf9064208
+      size: 148
     - path: mlflow_run_id.yaml
-      md5: 37d760bd358dd47c86a58967e3e26ca2
+      md5: e527696ab9fb83dcd8666194ed45b671
       size: 76
   inference:
-    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id-yaml
+    cmd: source /home/.set_environment_variables.sh && python3.10 inference.py --run-id-yaml
       mlflow_run_id.yaml
     deps:
     - path: config_smoke.yaml
-      md5: 0b0c49a284162b296877e6cfb10c0bc7
-      size: 174
+      md5: faf616573f38de97c50fa944f79cdc1b
+      size: 173
     - path: mlflow_run_id.yaml
-      md5: 37d760bd358dd47c86a58967e3e26ca2
+      md5: e527696ab9fb83dcd8666194ed45b671
       size: 76
     - path: training.py
       md5: 6b494f8095098367975ba4651ff7662f
       size: 3258
     outs:
     - path: ../figures/condition_numbers.png
-      md5: 967141f7698748bcebe345040b444cc6
-      size: 55300
+      md5: 9de010b108c06d1721df37c77db8ce24
+      size: 51103
     - path: ../figures/inference_approx.png
-      md5: 3016a73601777b838854e79bfd50c349
-      size: 64448
+      md5: e7ed4dd9741c8dc1f8eb5a828c841941
+      size: 63254
     - path: ../figures/inference_precondition.png
-      md5: c062cbc74bdc4674e8620860d6389157
-      size: 52952
+      md5: 853d411f99c8adb48ca7faf500e1bff9
+      size: 50732

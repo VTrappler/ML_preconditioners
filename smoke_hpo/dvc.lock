@@ -1,5 +1,8 @@
 schema: '2.0'
 stages:
   smoke_hpo:
-    cmd: source ../.set_environment_variables.sh && python3.10 hpo_smoke.py --config
-      hpo_config.yaml
+    cmd: source ../.set_environment_variables.sh && python3.10 hpo.py --config hpo_config.yaml
+    deps:
+    - path: /root/raw_data/data.pkl
+      md5: 46911b2857cd7c1e3fed6420654b05ad
+      size: 680490150

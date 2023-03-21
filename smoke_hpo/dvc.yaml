@@ -1,7 +1,12 @@
-stages:
-  smoke_hpo:
-    cmd: source ../.set_environment_variables.sh && python3.10 hpo.py --config hpo_config.yaml
-    
 params:
   - data_params.yaml
   - hpo_config.yaml
+vars:
+  - abs_path: /home
+  - smoke_path: /home/smoke
+
+stages:
+  smoke_hpo:
+    cmd: source ../.set_environment_variables.sh && python3.10 hpo.py --config hpo_config.yaml
+    deps:
+      - /root/raw_data/data.pkl

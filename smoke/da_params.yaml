@@ -1,0 +1,4 @@
+DA:
+  n_cycle: 10
+  n_outer: 5
+  n_inner: 100

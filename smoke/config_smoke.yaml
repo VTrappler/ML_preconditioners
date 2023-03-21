@@ -2,10 +2,10 @@ data:
   dimension: 20
   data_path: /root/raw_data/data.pkl
 architecture:
-  rank: 10
+  rank: 15
   n_layers: 6
   neurons_per_layer: 0
   batch_size: 64
   lr: 1e-4
 optimizer:
-  epochs: 10
+  epochs: 250

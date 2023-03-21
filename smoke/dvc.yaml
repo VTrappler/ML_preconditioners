@@ -1,6 +1,11 @@
+params:
+  - data_params.yaml
+  - config_smoke.yaml
 vars:
   - abs_path: /home
   - smoke_path: /home/smoke
+  - data_path: /root/raw_data
+  - fig_path: /home/figures
 
 stages:
   generate_data:
@@ -15,15 +20,15 @@ stages:
           - model.window
           - model.output
     outs:
-      - /root/raw_data/data.pkl
+      - ${data_path}/data.pkl
 
   train:
     cmd: source ${abs_path}/.set_environment_variables.sh && python3.10 ${smoke_path}/training.py --config config_smoke.yaml --exp-name smoke_train_tr
     deps:
       - training.py
       - config_smoke.yaml
-      - ../prec_data/data.py
-      - /root/raw_data/data.pkl
+      - ${abs_path}/prec_data/data.py
+      - ${data_path}/data.pkl
     params:
       - config_smoke.yaml:
           - data.dimension
@@ -42,15 +47,11 @@ stages:
       - mlflow_run_id.yaml
       - training.py
       - config_smoke.yaml
-    cmd: source ../.set_environment_variables.sh && python3.10 inference.py --run-id-yaml mlflow_run_id.yaml
+    cmd: source ${abs_path}/.set_environment_variables.sh && python3.10 inference.py --run-id-yaml mlflow_run_id.yaml
     plots:
-      - /home/figures/condition_numbers.png
-      - /home/figures/inference_approx.png
-      - /home/figures/inference_precondition.png
-
-params:
-  - data_params.yaml
-  - config_smoke.yaml
+      - ${fig_path}/condition_numbers.png
+      - ${fig_path}/inference_approx.png
+      - ${fig_path}/inference_precondition.png
 
 plots:
   - logs.csv:

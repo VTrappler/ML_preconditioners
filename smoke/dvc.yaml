@@ -9,7 +9,9 @@ vars:
 
 stages:
   generate_data:
-    cmd: python3.10 ${abs_path}/prec_data/data_generation.py --config ${smoke_path}/data_params.yaml
+    cmd: >-
+      python3.10 ${abs_path}/prec_data/data_generation.py
+      --config ${smoke_path}/data_params.yaml
     deps:
       - ${abs_path}/prec_data/data_generation.py
       - ${smoke_path}/data_params.yaml
@@ -23,7 +25,11 @@ stages:
       - ${data_path}/data.pkl
 
   train:
-    cmd: source ${abs_path}/.set_environment_variables.sh && python3.10 ${smoke_path}/training.py --config config_smoke.yaml --exp-name smoke_train_tr
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh &&
+      python3.10 ${smoke_path}/training.py
+      --config config_smoke.yaml
+      --exp-name smoke_train_tr
     deps:
       - training.py
       - config_smoke.yaml
@@ -42,19 +48,48 @@ stages:
       - mlflow_run_id.yaml
       - logs.csv
 
-  inference:
+  test:
     deps:
       - mlflow_run_id.yaml
       - training.py
       - config_smoke.yaml
-    cmd: source ${abs_path}/.set_environment_variables.sh && python3.10 inference.py --run-id-yaml mlflow_run_id.yaml
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh && 
+      python3.10 inference.py
+      --run-id-yaml mlflow_run_id.yaml
+    params:
+      - data_params.yaml:
+          - model.output
     plots:
       - ${fig_path}/condition_numbers.png
       - ${fig_path}/inference_approx.png
       - ${fig_path}/inference_precondition.png
+
+  data_assim:
+    deps:
+      - config_smoke.yaml
+      - mlflow_run_id.yaml
+      - config_DA.yaml
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh &&
+      python3.10 data_assimilation_benchmark.py
+      --config-DA config_DA.yaml
+      --run-id-yaml mlflow_run_id.yaml
+      --general-settings config_smoke.yaml
+    params:
+      - data_params.yaml:
+          - model.window
+    outs:
+      - ${smoke_path}/DA_logs.csv
+    plots:
+      - ${fig_path}/res_inner_loop.png
 
 plots:
   - logs.csv:
       template: linear
       x: step
       y: Loss/train_loss
+  - DA_logs.csv:
+      template: scatter_log.json
+      x: CGiter
+      y: condprec

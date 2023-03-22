@@ -49,13 +49,13 @@ class ConvLayersSVD(torch.nn.Module):
         self.n_latent = n_latent
         self.kernel_size = kernel_size
         self.n_layers = n_layers
-        self.layers_vec = PeriodicConv1DBlock(
+        self.convlayers_vec = PeriodicConv1DBlock(
             self.state_dimension,
             n_channels=self.n_latent,
             kernel_size=self.kernel_size,
             n_layers=self.n_layers,
         )
-        self.layers_singval = torch.nn.Sequential(
+        self.convlayers_singval = torch.nn.Sequential(
             PeriodicConv1DBlock(
                 self.state_dimension,
                 n_channels=self.n_latent,
@@ -64,12 +64,27 @@ class ConvLayersSVD(torch.nn.Module):
             ),
             torch.nn.AdaptiveAvgPool1d(1),
         )
+        self.mlp_block = torch.nn.Sequential(
+            torch.nn.Linear(
+                self.n_latent * self.state_dimension,
+                self.n_latent * self.state_dimension,
+            ),
+            torch.nn.LeakyReLU(),
+            torch.nn.Linear(
+                self.n_latent * self.state_dimension,
+                self.n_latent * self.state_dimension,
+            ),
+        )
 
     def forward(self, x):
         x = torch.atleast_2d(x)
-        x = x.view(len(x), 1, -1)
+        x = x.view(len(x), 1, -1)  # dim x: nbatch * state_dimension
         n_batch = len(x)
-        vectors = torch.nn.functional.normalize(self.layers_vec(x), dim=-1)
+        convlayers = self.layers_vec(x)  # dim: nbatch * n_latent * state_dimension
+        flat_vecs = self.mlp_block(torch.nn.flatten(convlayers, 1))
+        vectors = torch.nn.functional.normalize(
+            flat_vecs.view(n_batch, self.n_latent, self.state_dimension), dim=-1
+        )
         # print(vectors.shape)
         singvals = self.layers_singval(x)
         # print(singvals.shape)

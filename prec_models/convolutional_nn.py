@@ -1,57 +1,44 @@
 import torch
 
 
-def construct_conv1D(n_in, n_c, kernel_size, n_layers):
-    padding_mode = "circular"
-    ll = [
-        torch.nn.Conv1d(
-            1, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
-        ),
-        torch.nn.LeakyReLU(),
-    ]
-    for _ in range(n_layers):
-        ll.extend(
-            [
-                torch.nn.Conv1d(
-                    n_c,
-                    n_c,
-                    kernel_size,
-                    padding=kernel_size // 2,
-                    padding_mode=padding_mode,
-                ),
-                torch.nn.LeakyReLU(),
-            ]
-        )
+class PeriodicConv1DBlock(torch.nn.Module):
+    def __init__(
+        self,
+        n_in,
+        n_channels: int,
+        kernel_size: int,
+        n_layers: int,
+    ) -> None:
+        super().__init__()
+        padding_mode = "circular"
+        layerslist = [
+            torch.nn.Conv1d(
+                1,
+                n_channels,
+                kernel_size,
+                padding=kernel_size // 2,
+                padding_mode=padding_mode,
+            ),
+            torch.nn.BatchNorm1d(n_channels),
+            torch.nn.LeakyReLU(),
+        ]
+        for _ in range(n_layers):
+            layerslist.extend(
+                [
+                    torch.nn.Conv1d(
+                        n_channels,
+                        n_channels,
+                        kernel_size,
+                        padding=kernel_size // 2,
+                        padding_mode=padding_mode,
+                    ),
+                    torch.nn.LeakyReLU(),
+                ]
+            )
+        self.layers_vec = torch.nn.Sequential(*layerslist)
 
-    layers_vec = torch.nn.Sequential(*ll)
-    return layers_vec
-
-
-def construct_conv1D_singularvalue(n_in, n_c, kernel_size, n_layers):
-    padding_mode = "circular"
-
-    ll = [
-        torch.nn.Conv1d(
-            1, n_c, kernel_size, padding=kernel_size // 2, padding_mode=padding_mode
-        ),
-        torch.nn.LeakyReLU(),
-    ]
-    for _ in range(n_layers):
-        ll.extend(
-            [
-                torch.nn.Conv1d(
-                    n_c,
-                    n_c,
-                    kernel_size,
-                    padding=kernel_size // 2,
-                    padding_mode=padding_mode,
-                ),
-                torch.nn.LeakyReLU(),
-            ]
-        )
-
-    layers_vec = torch.nn.Sequential(*ll, torch.nn.AdaptiveAvgPool1d(1))
-    return layers_vec
+    def forward(self, x):
+        return self.layers_vec(x)
 
 
 class ConvLayersSVD(torch.nn.Module):
@@ -61,17 +48,22 @@ class ConvLayersSVD(torch.nn.Module):
         self.n_latent = n_latent
         self.kernel_size = kernel_size
         self.n_layers = n_layers
-        self.layers_vec = construct_conv1D(
+        self.layers_vec = PeriodicConv1DBlock(
             self.state_dimension,
-            self.n_latent,
+            n_channels=self.n_latent,
             kernel_size=self.kernel_size,
             n_layers=self.n_layers,
         )
-        self.layers_sing = construct_conv1D_singularvalue(
-            self.state_dimension,
-            self.n_latent,
-            kernel_size=self.kernel_size,
-            n_layers=self.n_layers,
+        self.layers_singval = torch.nn.Sequential(
+            [
+                PeriodicConv1DBlock(
+                    self.state_dimension,
+                    n_channels=self.n_latent,
+                    kernel_size=self.kernel_size,
+                    n_layers=self.n_layers,
+                ),
+                torch.nn.AdaptiveAvgPool1d(1),
+            ]
         )
 
     def forward(self, x):
@@ -80,7 +72,7 @@ class ConvLayersSVD(torch.nn.Module):
         n_batch = len(x)
         vectors = torch.nn.functional.normalize(self.layers_vec(x), dim=-1)
         # print(vectors.shape)
-        singvals = self.layers_sing(x)
+        singvals = self.layers_singval(x)
         # print(singvals.shape)
         return torch.concat(
             (vectors, singvals.view(n_batch, self.n_latent, 1)), -1

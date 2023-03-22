@@ -32,6 +32,7 @@ class PeriodicConv1DBlock(torch.nn.Module):
                         padding=kernel_size // 2,
                         padding_mode=padding_mode,
                     ),
+                    torch.nn.BatchNorm1d(n_channels),
                     torch.nn.LeakyReLU(),
                 ]
             )
@@ -55,15 +56,13 @@ class ConvLayersSVD(torch.nn.Module):
             n_layers=self.n_layers,
         )
         self.layers_singval = torch.nn.Sequential(
-            [
-                PeriodicConv1DBlock(
-                    self.state_dimension,
-                    n_channels=self.n_latent,
-                    kernel_size=self.kernel_size,
-                    n_layers=self.n_layers,
-                ),
-                torch.nn.AdaptiveAvgPool1d(1),
-            ]
+            PeriodicConv1DBlock(
+                self.state_dimension,
+                n_channels=self.n_latent,
+                kernel_size=self.kernel_size,
+                n_layers=self.n_layers,
+            ),
+            torch.nn.AdaptiveAvgPool1d(1),
         )
 
     def forward(self, x):

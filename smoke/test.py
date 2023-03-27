@@ -27,13 +27,13 @@ def bqr(a):
 
 def construct_matrices(x_):
     pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    vecs, logsvals = pred[:, :20, :], pred[:, -1, :]
+    vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
     sv = np.exp(logsvals)
     inv_sv = np.exp(-logsvals) - 1
     qi = bqr(vecs)
     # H = construct_matrix_USUt(qi, eli)
     mats = bmm(qi, (sv[..., None] * bt(qi)))
-    prec = bmm(qi, (inv_sv[..., None] * bt(qi))) + np.eye(20)
+    prec = bmm(qi, (inv_sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
     return mats, prec
 
 
@@ -60,9 +60,25 @@ def gauss_newton_approximation_svd(
         _, sv, _ = np.linalg.svd(gn)
         plt.plot(sv)
         approx_sv = np.sort(
-            get_approximate_singular_val(x_[idx].reshape(-1, 20)).flatten()
+            get_approximate_singular_val(x_[idx].reshape(-1, len(sv))).flatten()
         )[::-1]
         plt.plot(approx_sv, color="red")
+    plt.tight_layout()
+    plt.savefig(figname)
+    plt.close()
+
+
+def sanity_check(
+    approximations, preconditioners, indices, figname="/home/figures/sanity_check"
+):
+    product = preconditioners @ approximations
+    for j, idx in enumerate(indices):
+        plt.subplot(2, 5, 1 + j)
+        plt.imshow(product[idx, ...])
+        plt.title(f"Product: {idx}")
+        plt.subplot(2, 5, 6 + j)
+        _, sv, _ = np.linalg.svd(product[idx, ...])
+        plt.plot(sv)
     plt.tight_layout()
     plt.savefig(figname)
     plt.close()
@@ -75,7 +91,7 @@ def preconditioned_svd(
         plt.subplot(2, 5, 1 + j)
         tl = tlm_[idx, ...]
         gn = tl.T @ tl
-        preconditioned_gn = gn @ preconditioners[idx, ...]
+        preconditioned_gn = preconditioners[idx, ...] @ gn
         plt.imshow(preconditioned_gn)
         plt.subplot(2, 5, 6 + j)
         _, sv, _ = np.linalg.svd(preconditioned_gn)
@@ -139,3 +155,7 @@ if __name__ == "__main__":
     )
 
     condition_numbers(preconditioners, tlm_, figname=f"/home/figures/condition_numbers")
+
+    sanity_check(
+        approximations, preconditioners, indices, figname=f"/home/figures/sanity_check"
+    )

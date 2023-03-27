@@ -27,7 +27,7 @@ def main(config):
     mlflow.pytorch.autolog(
         log_models=False
     )  # Logging model with signature at the end instead
-    state_dimension = config["data"]["dimension"]
+    state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
     data_path = config["data"]["data_path"]
 

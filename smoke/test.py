@@ -8,6 +8,7 @@ import mlflow
 import numpy as np
 
 sys.path.append("/home/")
+import tqdm
 
 
 def bmm(a, b):
@@ -18,6 +19,14 @@ def bt(a):
     return np.einsum("Bij->Bji", a)
 
 
+def bouter(a, b):
+    return np.einsum("Bnr,Bnr -> Bnn", a, b)
+
+
+def bouter1D(a, b):
+    return np.einsum("Bi,Bj -> Bij", a, b)
+
+
 def bqr(a):
     Q = np.empty_like(a)
     for i, mat in enumerate(a):
@@ -25,14 +34,32 @@ def bqr(a):
     return Q
 
 
+def sumLMP_ML(x_):
+    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    Ur = bqr(vecs)
+    n = Ur.shape[1]
+    r = Ur.shape[-1]
+    acc = np.zeros((len(pred), n, n))
+    print(f"{Sr.shape=}")
+    for i in range(r):
+        uu  = Ur[..., i].reshape((len(pred), n, 1))
+        uuprime = bmm(uu, bt(uu))
+        acc += ((1 - Sr[:, i]**(-1))).reshape(len(pred), 1, 1) * uuprime
+    prec = np.eye(n).reshape(1, n, n) - acc
+    mats = bmm(Ur, (Sr[..., None] * bt(Ur)))
+    return mats, prec
+
+
 def construct_matrices(x_):
     pred = loaded_model.predict(np.asarray(x_).astype("f"))
     vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    sv = np.exp(logsvals)
+    sv = np.exp(logsvals) - 1
     inv_sv = np.exp(-logsvals) - 1
     qi = bqr(vecs)
     # H = construct_matrix_USUt(qi, eli)
-    mats = bmm(qi, (sv[..., None] * bt(qi)))
+    mats = bmm(qi, (sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
     prec = bmm(qi, (inv_sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
     return mats, prec
 
@@ -114,6 +141,19 @@ def condition_numbers(
     plt.close()
 
 
+def range_singular_values(tlm_):
+    cmin = np.inf
+    cmax = -np.inf
+    for i in tqdm.trange(len(tlm_)):
+        tl = tlm_[i, ...]
+        sv = np.linalg.svd(tl.T @ tl)[1]
+        if sv.max() > cmax:
+            cmax = sv.max()
+        if sv.min() < cmin:
+            cmin = sv.min()
+    print(f"min: {cmin}, max: {cmax}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use Surrogate in inference")
     parser.add_argument("--run-id", type=str, default="")
@@ -141,10 +181,13 @@ if __name__ == "__main__":
     x_, fo_, tlm_ = zip(*data)
 
     x_ = np.asarray(x_)
-    approximations, preconditioners = construct_matrices(x_)
+    # approximations, preconditioners = construct_matrices(x_)
+    approximations, preconditioners = sumLMP_ML(x_)
     tlm_ = np.asarray(tlm_)
     # plt.figure(figsize=(12, 6))
     indices = np.random.randint(0, len(x_), size=5)
+
+    range_singular_values(tlm_)
 
     gauss_newton_approximation_svd(
         x_, tlm_, indices, figname="/home/figures/inference_approx"

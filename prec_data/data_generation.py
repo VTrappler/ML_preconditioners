@@ -95,7 +95,7 @@ if __name__ == "__main__":
         help="configuration file *.yml",
         type=str,
         required=False,
-        default="data_params.yml",
+        default="config.yml",
     )
     parser.add_argument("-dim", type=int, help="State dimension of the Lorenz model")
     parser.add_argument("-n_total_obs", type=int, help="Number of observations")
@@ -109,11 +109,11 @@ if __name__ == "__main__":
 
     if len(args.config) > 0:
         conf = OmegaConf.load(args.config)
-        dim = conf.model["dimension"]
-        nsamples = conf.model["nsamples"]
-        window = conf.model["window"]
-        if "output" in conf.model.keys():
-            target = conf.model["output"]
+        dim = conf["model"]["dimension"]
+        window = conf["model"]["window"]
+        nsamples = conf["data"]["nsamples"]
+        if "data_path" in conf["data"].keys():
+            target = conf["data"]["data_path"]
         else:
             target = f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
 
@@ -131,8 +131,8 @@ if __name__ == "__main__":
 
     lorenz.generate_obs(n_total_obs=window, H=lambda x: x)
 
-    if args.dummy:
-        training_data = generate_training_dummy(Nobs=nsamples)
-    else:
-        training_data = generate_training_x(lorenz, Nobs=nsamples)
+    # if args.dummy:
+    #     training_data = generate_training_dummy(Nobs=nsamples)
+    # else:
+    training_data = generate_training_x(lorenz, Nobs=nsamples)
     save_data(training_data, target)

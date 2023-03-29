@@ -1,6 +1,5 @@
 params:
-  - data_params.yaml
-  - config_smoke.yaml
+  - config.yaml
 vars:
   - abs_path: /home
   - smoke_path: /home/smoke
@@ -11,33 +10,39 @@ stages:
   generate_data:
     cmd: >-
       python3.10 ${abs_path}/prec_data/data_generation.py
-      --config ${smoke_path}/data_params.yaml
+      --config ${smoke_path}/config.yaml
     deps:
       - ${abs_path}/prec_data/data_generation.py
-      - ${smoke_path}/data_params.yaml
+      # - ${smoke_path}/data_params.yaml
     params:
-      - data_params.yaml:
+      - config.yaml:
           - model.dimension
-          - model.nsamples
           - model.window
-          - model.output
+          - data.nsamples
+          - data.data_path
+    vars:
+      - config.yaml:data
     outs:
-      - ${data_path}/data.pkl
+      - ${data.data_path}
 
   train:
+    vars:
+      - config.yaml:data
     cmd: >-
       source ${abs_path}/.set_environment_variables.sh &&
       python3.10 ${smoke_path}/training.py
-      --config config_smoke.yaml
+      --config config.yaml
       --exp-name smoke_train_tr
     deps:
+      - config.yaml
       - training.py
-      - config_smoke.yaml
       - ${abs_path}/prec_data/data.py
-      - ${data_path}/data.pkl
+      - ${data.data_path}
+      # - ${data_path}/data.pkl
     params:
-      - config_smoke.yaml:
-          - data.dimension
+      - config.yaml:
+          - data.data_path
+          - model.dimension
           - architecture.rank
           - architecture.n_layers
           - architecture.batch_size
@@ -52,33 +57,38 @@ stages:
     deps:
       - mlflow_run_id.yaml
       - training.py
-      - config_smoke.yaml
+      - config.yaml
+      - test.py
     cmd: >-
       source ${abs_path}/.set_environment_variables.sh && 
-      python3.10 inference.py
+      python3.10 test.py
       --run-id-yaml mlflow_run_id.yaml
     params:
-      - data_params.yaml:
-          - model.output
+      - config.yaml:
+          - data.data_path
     plots:
       - ${fig_path}/condition_numbers.png
       - ${fig_path}/inference_approx.png
       - ${fig_path}/inference_precondition.png
+      - ${fig_path}/sanity_check.png
 
   data_assim:
     deps:
-      - config_smoke.yaml
+      # - config_smoke.yaml
+      - logs.csv
       - mlflow_run_id.yaml
-      - config_DA.yaml
+      # - config_DA.yaml
     cmd: >-
       source ${abs_path}/.set_environment_variables.sh &&
       python3.10 data_assimilation_benchmark.py
-      --config-DA config_DA.yaml
+      --config config.yaml
       --run-id-yaml mlflow_run_id.yaml
-      --general-settings config_smoke.yaml
     params:
-      - data_params.yaml:
+      - config.yaml:
           - model.window
+          - DA.n_cycle
+          - DA.n_outer
+          - DA.n_inner
     outs:
       - ${smoke_path}/DA_logs.csv
     plots:
@@ -93,3 +103,7 @@ plots:
       template: scatter_log.json
       x: CGiter
       y: condprec
+  # - ${fig_path}/res_inner_loop.png
+  # - ${fig_path}/condition_numbers.png
+  # - ${fig_path}/inference_approx.png
+  # - ${fig_path}/inference_precondition.png

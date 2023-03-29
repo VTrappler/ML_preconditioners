@@ -27,11 +27,13 @@ def main(config):
     mlflow.pytorch.autolog(
         log_models=False
     )  # Logging model with signature at the end instead
-    state_dimension = config["data"]["dimension"]
+    state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
     data_path = config["data"]["data_path"]
 
-    torch_model = construct_model_class(SVDPrec, rank=config["architecture"]["rank"])
+    torch_model = construct_model_class(
+        SVDConvolutional, rank=config["architecture"]["rank"]
+    )
     model = torch_model(state_dimension=state_dimension, config=config["architecture"])
 
     mlflow.log_params(config["architecture"])

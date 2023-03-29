@@ -1,0 +1,21 @@
+model:
+  dimension: 10
+  window: 10
+data:
+  data_path: /root/raw_data/data_10.pkl
+  nsamples: 10000
+architecture:
+  rank: 5
+  n_layers: 5
+  neurons_per_layer: 0
+  batch_size: 64
+  lr: 1e-4
+optimizer:
+  epochs: 200
+DA:
+  n_cycle: 10
+  n_outer: 5
+  n_inner: 100
+  model_error_sqrt: 0.5
+  obs_error_sqrt: 3.0
+  log_file: /home/smoke/DA_logs.csv

@@ -70,7 +70,7 @@ class ConvLayersSVD(torch.nn.Module):
             kernel_size=self.kernel_size,
             n_layers=self.n_layers,
         )
-        self.param_sig = ParamSigmoid(0, 10, 0)
+        self.param_sig = ParamSigmoid(0.5, 10, 0)
         self.mlp_block = torch.nn.Sequential(
             torch.nn.Linear(
                 self.n_latent * self.state_dimension,

@@ -1,19 +1,20 @@
 model:
-  dimension: 10
+  dimension: 20
   window: 10
 data:
-  data_path: /root/raw_data/data_10.pkl
-  nsamples: 10000
+  data_path: /root/raw_data/data_20.pkl
+  nsamples: 20000
 architecture:
-  rank: 5
+  class: SVDprec
+  rank: 10
   n_layers: 5
-  neurons_per_layer: 0
+  neurons_per_layer: 128
   batch_size: 64
-  lr: 1e-4
+  lr: 1e-5
 optimizer:
   epochs: 200
 DA:
-  n_cycle: 10
+  n_cycle: 5
   n_outer: 5
   n_inner: 100
   model_error_sqrt: 0.5

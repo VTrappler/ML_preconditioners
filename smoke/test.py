@@ -44,24 +44,54 @@ def sumLMP_ML(x_):
     acc = np.zeros((len(pred), n, n))
     print(f"{Sr.shape=}")
     for i in range(r):
-        uu  = Ur[..., i].reshape((len(pred), n, 1))
+        uu = Ur[..., i].reshape((len(pred), n, 1))
         uuprime = bmm(uu, bt(uu))
-        acc += ((1 - Sr[:, i]**(-1))).reshape(len(pred), 1, 1) * uuprime
+        acc += ((1 - Sr[:, i] ** (-1))).reshape(len(pred), 1, 1) * uuprime
     prec = np.eye(n).reshape(1, n, n) - acc
     mats = bmm(Ur, (Sr[..., None] * bt(Ur)))
     return mats, prec
 
 
+def construct_LMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.ndarray:
+    print(f"{S.shape=}")
+    In = np.eye(S.shape[1]).reshape(1, S.shape[1], S.shape[1])
+    StASm1 = np.linalg.inv(bmm(bt(S), AS))
+    left = In - bmm(bmm(S, StASm1), bt(AS))
+    mid = In - bmm(bmm(AS, StASm1), bt(S))
+    right = bmm(bmm(S, StASm1), bt(S))
+    H = bmm(left, mid) + shift * right
+    return H
+
+
+def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.ndarray:
+    print(f"{S.shape=}")
+
+    In = np.eye(S.shape[1]).reshape(1, S.shape[1], S.shape[1])
+    StASm1 = np.linalg.inv(bmm(bt(S), AS))
+    B = (
+        In
+        + (1 / shift) * bmm(bmm(AS, StASm1), bt(AS))
+        - bmm(
+            bmm(S, np.linalg.inv(bmm(bt(S), S))),
+            bt(S),
+        )
+    )
+    return B
+
+
 def construct_matrices(x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    sv = np.exp(logsvals) - 1
-    inv_sv = np.exp(-logsvals) - 1
-    qi = bqr(vecs)
+    outputs = loaded_model.predict(np.asarray(x_).astype("f"))
+    S, AS = outputs[..., 0], outputs[..., 1]
+    return construct_invLMP(S, AS), construct_LMP(S, AS)
+
+
+def construct_matrices(x_):
+    Sr, Ur = construct_svd_ML(loaded_model, x_)
+    Sr_minus_1 = Sr - 1
     # H = construct_matrix_USUt(qi, eli)
-    mats = bmm(qi, (sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
-    prec = bmm(qi, (inv_sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
-    return mats, prec
+    lr_approximation = bmm(Ur, (Sr[..., None] * bt(Ur)))
+    prec = bmm(Ur, (Sr_minus_1[..., None] * bt(Ur))) + np.eye(Ur.shape[1])
+    return lr_approximation, prec
 
 
 def get_approximate_singular_val(x_):
@@ -69,6 +99,15 @@ def get_approximate_singular_val(x_):
     logsvals = pred[:, -1, :]
     sv = np.exp(logsvals)
     return sv
+
+
+def construct_svd_ML(loaded_model, x_):
+    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    # Ur = bqr(vecs)
+    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+    return Sr.squeeze(), Ur.squeeze()
 
 
 def gauss_newton_approximation_svd(
@@ -182,7 +221,7 @@ if __name__ == "__main__":
 
     x_ = np.asarray(x_)
     # approximations, preconditioners = construct_matrices(x_)
-    approximations, preconditioners = sumLMP_ML(x_)
+    approximations, preconditioners = construct_matrices(x_)
     tlm_ = np.asarray(tlm_)
     # plt.figure(figsize=(12, 6))
     indices = np.random.randint(0, len(x_), size=5)

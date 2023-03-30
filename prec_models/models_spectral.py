@@ -106,8 +106,10 @@ class SVDPrec(BaseModel):
         )  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         eli = torch.exp(li)
-        qi = torch.linalg.qr(vi)[0]
-        H = construct_matrix_USUt(qi, eli)
+        # qi = torch.linalg.qr(vi)[0]
+        vi = torch.nn.functional.normalize(vi, dim=1)
+
+        H = construct_matrix_USUt(vi, eli)
         return H
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
@@ -117,8 +119,10 @@ class SVDPrec(BaseModel):
         vi, li = S[:, :-1, :], S[:, -1, :]
         # eli = torch.exp(-li)
         eli = torch.exp(-li)
-        qi = torch.linalg.qr(vi)[0]
-        Hm1 = construct_matrix_USUt(qi, eli)
+        # qi = torch.linalg.qr(vi)[0]
+        vi = torch.nn.functional.normalize(vi, dim=1)
+
+        Hm1 = construct_matrix_USUt(vi, eli)
         return Hm1
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
@@ -132,14 +136,17 @@ class SVDPrec(BaseModel):
         # y_hat = self.construct_LMP(S, AS, 1)
 
         regul = Regularization(self, stage)
-        # loss = self.mse(product, eye_like(product))
-        # gram_matrix = torch.bmm(S.mT, S)
-        # # skew_sym = y_hatinv.mT - y_hatinv
-        # skew_sym = S.bmm(AS.mT) - AS.bmm(S.mT)
-        # loss = self.loss(y_hat, product, self.identity)
+
         mse_approx = self.mse(GtG_approx, GTG)
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
-        loss = mse_approx  # + 0.5 * reg
+
+        vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
+            :, :-1, :
+        ]
+        vi = torch.nn.functional.normalize(vi, dim=1)
+
+        ortho_reg = regul.loss_gram_matrix(vi)
+        loss = mse_approx + ortho_reg  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
 
@@ -194,8 +201,6 @@ class DeflationPrec(BaseModel):
         rank: int,
         config: dict,
         datatype: str = "full",
-        AS: bool = True,
-        n_layers_AS: Optional[int] = None,
     ) -> None:
         """
         config: dict with keys n_layers, neurons_per_layer, batch_size,
@@ -204,7 +209,6 @@ class DeflationPrec(BaseModel):
         super().__init__(state_dimension, config)
         self.rank = rank
         self.n_out = int(rank * (state_dimension + 1))
-        self.AS = AS
         self.datatype = datatype
 
         ## Construction of the MLP

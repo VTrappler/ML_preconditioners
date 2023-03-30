@@ -13,7 +13,8 @@ from pytorch_lightning.loggers import CSVLogger
 
 from prec_data.data import TangentLinearDataModule
 from prec_models import construct_model_class
-from prec_models.models_spectral import SVDConvolutional, SVDPrec
+from prec_models.models_spectral import SVDConvolutional, SVDPrec, DeflationPrec
+from prec_models.models_limitedmemoryprec import LMPPrec, LimitedMemoryPrecRegularized
 from prec_models.models_unstructured import LowRank
 
 logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
@@ -21,6 +22,15 @@ smoke_path = os.path.join(os.sep, "home", "smoke")
 
 
 # from dotenv import load_dotenv, dotenv_values
+model_list = [
+    SVDConvolutional,
+    SVDPrec,
+    DeflationPrec,
+    LMPPrec,
+    LimitedMemoryPrecRegularized,
+    LowRank,
+]
+model_classes = {cl.__name__: cl for cl in model_list}
 
 
 def main(config):
@@ -32,7 +42,8 @@ def main(config):
     data_path = config["data"]["data_path"]
 
     torch_model = construct_model_class(
-        SVDConvolutional, rank=config["architecture"]["rank"]
+        model_classes[config["architecture"]["class"]],
+        rank=config["architecture"]["rank"],
     )
     model = torch_model(state_dimension=state_dimension, config=config["architecture"])
 

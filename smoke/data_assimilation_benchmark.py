@@ -4,6 +4,8 @@ from omegaconf import OmegaConf
 
 plt.style.use("seaborn-v0_8")
 import argparse
+import logging
+import os
 
 from DA_PoC.common.observation_operator import (
     IdentityObservationOperator,
@@ -14,9 +16,11 @@ from DA_PoC.dynamical_systems.lorenz_numerical_model import (
     create_lorenz_model_observation,
 )
 from DA_PoC.variational.incrementalCG import Incremental4DVarCG, pad_ragged
-import logging
 
 logging.basicConfig(level=logging.INFO)
+logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
+smoke_path = os.path.join(os.sep, "home", "smoke")
+artifacts_path = os.path.join(smoke_path, "artifacts")
 
 
 def bmm(a, b):
@@ -209,8 +213,8 @@ def main(config, loaded_model=None):
         )
 
     DA_deflation = create_DA_experiment(
-        "deflation",
-        prec={"prec_name": deflation_preconditioner, "prec_type": "deflation"},
+        "deflation_ML",
+        prec={"prec_name": MLpreconditioner_svd, "prec_type": "deflation"},
     )
     l_model_randobs.r = config["architecture"]["rank"]
     # DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
@@ -225,7 +229,7 @@ def main(config, loaded_model=None):
             f"C{i}", label=DA_exp.exp_name, cumulative=False
         )
     plt.legend()
-    plt.savefig("/home/figures/res_inner_loop.png")
+    plt.savefig(os.path.join(artifacts_path, "res_inner_loop.png"))
     plt.close()
 
 
@@ -235,9 +239,10 @@ if __name__ == "__main__":
     parser.add_argument("--run-id-yaml", type=str, default="")
 
     args = parser.parse_args()
-    import yaml
-    import mlflow
     import sys
+
+    import mlflow
+    import yaml
 
     sys.path.append("..")
     with open(args.run_id_yaml, "r") as fstream:

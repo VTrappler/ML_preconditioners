@@ -19,6 +19,7 @@ from prec_models.models_unstructured import LowRank
 
 logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
 smoke_path = os.path.join(os.sep, "home", "smoke")
+artifacts_path = os.path.join(smoke_path, "artifacts")
 
 
 # from dotenv import load_dotenv, dotenv_values
@@ -39,6 +40,7 @@ def main(config):
     )  # Logging model with signature at the end instead
     state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
+
     data_path = config["data"]["data_path"]
 
     torch_model = construct_model_class(
@@ -54,7 +56,7 @@ def main(config):
 
     run = mlflow.active_run()
     print("Active run_id: {}".format(run.info.run_id))
-    with open(os.path.join(smoke_path, "mlflow_run_id.yaml"), "w") as fh:
+    with open(os.path.join(artifacts_path, "mlflow_run_id.yaml"), "w") as fh:
         run_id_dict = {"run_id": run.info.run_id, "data_path": data_path}
         OmegaConf.save(config=run_id_dict, f=fh)
 
@@ -82,10 +84,11 @@ def main(config):
     trainer.fit(model, datamodule)
     print(trainer.logged_metrics)
     shutil.copyfile(
-        os.path.join(logs_path, "lightning_logs", "smoke", "metrics.csv"), "./logs.csv"
+        os.path.join(logs_path, "lightning_logs", "smoke", "metrics.csv"),
+        os.path.join(artifacts_path, "training_logs.csv"),
     )
 
-    with open(os.path.join(smoke_path, "metrics.yaml"), "w") as fp:
+    with open(os.path.join(artifacts_path, "metrics.yaml"), "w") as fp:
         metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
         # metrics_dict["run_id"] = run.info.run_id
         OmegaConf.save(config=metrics_dict, f=fp)

@@ -4,7 +4,7 @@ vars:
   - abs_path: /home
   - smoke_path: /home/smoke
   - data_path: /root/raw_data
-  - fig_path: /home/figures
+  - artifacts_path: /home/smoke/artifacts
 
 stages:
   generate_data:
@@ -13,7 +13,6 @@ stages:
       --config ${smoke_path}/config.yaml
     deps:
       - ${abs_path}/prec_data/data_generation.py
-      # - ${smoke_path}/data_params.yaml
     params:
       - config.yaml:
           - model.dimension
@@ -38,51 +37,50 @@ stages:
       - training.py
       - ${abs_path}/prec_data/data.py
       - ${data.data_path}
-      # - ${data_path}/data.pkl
     params:
       - config.yaml:
           - data.data_path
           - model.dimension
+          - architecture.class
           - architecture.rank
           - architecture.n_layers
           - architecture.batch_size
           - optimizer.epochs
     metrics:
-      - metrics.yaml
+      - ${artifacts_path}/metrics.yaml
     outs:
-      - mlflow_run_id.yaml
-      - logs.csv
+      - ${artifacts_path}/mlflow_run_id.yaml
+      - ${artifacts_path}/training_logs.csv
 
   test:
     deps:
-      - mlflow_run_id.yaml
-      - training.py
       - config.yaml
+      - ${artifacts_path}/mlflow_run_id.yaml
+      - training.py
       - test.py
     cmd: >-
       source ${abs_path}/.set_environment_variables.sh && 
       python3.10 test.py
-      --run-id-yaml mlflow_run_id.yaml
+      --run-id-yaml ${artifacts_path}/mlflow_run_id.yaml
     params:
       - config.yaml:
           - data.data_path
     plots:
-      - ${fig_path}/condition_numbers.png
-      - ${fig_path}/inference_approx.png
-      - ${fig_path}/inference_precondition.png
-      - ${fig_path}/sanity_check.png
+      - ${artifacts_path}/condition_numbers.png
+      - ${artifacts_path}/inference_approx.png
+      - ${artifacts_path}/inference_precondition.png
+      - ${artifacts_path}/sanity_check.png
 
   data_assim:
     deps:
-      # - config_smoke.yaml
-      - logs.csv
-      - mlflow_run_id.yaml
-      # - config_DA.yaml
+      - config.yaml
+      - ${artifacts_path}/training_logs.csv
+      - ${artifacts_path}/mlflow_run_id.yaml
     cmd: >-
       source ${abs_path}/.set_environment_variables.sh &&
       python3.10 data_assimilation_benchmark.py
       --config config.yaml
-      --run-id-yaml mlflow_run_id.yaml
+      --run-id-yaml ${artifacts_path}/mlflow_run_id.yaml
     params:
       - config.yaml:
           - model.window
@@ -90,20 +88,20 @@ stages:
           - DA.n_outer
           - DA.n_inner
     outs:
-      - ${smoke_path}/DA_logs.csv
-    plots:
-      - ${fig_path}/res_inner_loop.png
+      - ${artifacts_path}/DA_logs.csv
+      - ${artifacts_path}/res_inner_loop.png
+    # plots:
 
 plots:
-  - logs.csv:
+  - ${artifacts_path}/training_logs.csv:
       template: linear
       x: step
       y: Loss/train_loss
-  - DA_logs.csv:
-      template: scatter_log.json
-      x: CGiter
-      y: condprec
-  # - ${fig_path}/res_inner_loop.png
-  # - ${fig_path}/condition_numbers.png
-  # - ${fig_path}/inference_approx.png
-  # - ${fig_path}/inference_precondition.png
+  - ${artifacts_path}/res_inner_loop.png
+  - ${artifacts_path}/condition_numbers.png
+  - ${artifacts_path}/inference_approx.png
+  - ${artifacts_path}/inference_precondition.png
+  # - DA_logs.csv:
+  #     template: scatter_log.json
+  #     x: nouter
+  #     y: condprec

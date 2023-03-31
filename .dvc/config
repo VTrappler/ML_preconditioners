@@ -1,2 +1,4 @@
 [core]
     autostage = true
+[cache]
+    dir = /root/cache

@@ -8,6 +8,7 @@ import mlflow
 import numpy as np
 
 sys.path.append("/home/")
+fig_folder = os.path.join(os.sep, "home", "smoke", "artifacts")
 import tqdm
 
 
@@ -105,13 +106,13 @@ def construct_svd_ML(loaded_model, x_):
     pred = loaded_model.predict(np.asarray(x_).astype("f"))
     Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
     Sr = np.exp(logsvals)
-    # Ur = bqr(vecs)
+    Ur = bqr(Ur)
     # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
     return Sr.squeeze(), Ur.squeeze()
 
 
 def gauss_newton_approximation_svd(
-    x_, tlm_, indices, figname="/home/figures/inference_approx"
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "inference_approx")
 ):
     for j, idx in enumerate(indices):
         plt.subplot(3, 5, 1 + j)
@@ -135,7 +136,10 @@ def gauss_newton_approximation_svd(
 
 
 def sanity_check(
-    approximations, preconditioners, indices, figname="/home/figures/sanity_check"
+    approximations,
+    preconditioners,
+    indices,
+    figname=os.path.join(fig_folder, "sanity_check"),
 ):
     product = preconditioners @ approximations
     for j, idx in enumerate(indices):
@@ -151,7 +155,10 @@ def sanity_check(
 
 
 def preconditioned_svd(
-    preconditioners, tlm_, indices, figname=f"/home/figures/inference_precondition"
+    preconditioners,
+    tlm_,
+    indices,
+    figname=os.path.join(fig_folder, "inference_precondition"),
 ):
     for j, idx in enumerate(indices):
         plt.subplot(2, 5, 1 + j)
@@ -168,7 +175,7 @@ def preconditioned_svd(
 
 
 def condition_numbers(
-    preconditioners, tlm_, figname=f"/home/figures/condition_numbers"
+    preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
 ):
     original_condition_number = np.linalg.cond((bt(tlm_) @ tlm_))
     sorted_indices = np.argsort(original_condition_number)
@@ -229,15 +236,23 @@ if __name__ == "__main__":
     range_singular_values(tlm_)
 
     gauss_newton_approximation_svd(
-        x_, tlm_, indices, figname="/home/figures/inference_approx"
+        x_, tlm_, indices, figname=os.path.join(fig_folder, "inference_approx")
     )
 
     preconditioned_svd(
-        preconditioners, tlm_, indices, figname=f"/home/figures/inference_precondition"
+        preconditioners,
+        tlm_,
+        indices,
+        figname=os.path.join(fig_folder, "inference_precondition"),
     )
 
-    condition_numbers(preconditioners, tlm_, figname=f"/home/figures/condition_numbers")
+    condition_numbers(
+        preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
+    )
 
     sanity_check(
-        approximations, preconditioners, indices, figname=f"/home/figures/sanity_check"
+        approximations,
+        preconditioners,
+        indices,
+        figname=os.path.join(fig_folder, "sanity_check"),
     )

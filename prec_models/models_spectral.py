@@ -106,10 +106,10 @@ class SVDPrec(BaseModel):
         )  # Batch_dimension x (state dimension + 1) x rank
         vi, li = S[:, :-1, :], S[:, -1, :]
         eli = torch.exp(li)
-        # qi = torch.linalg.qr(vi)[0]
-        vi = torch.nn.functional.normalize(vi, dim=1)
+        qi = torch.linalg.qr(vi)[0]
+        # vi = torch.nn.functional.normalize(vi, dim=1)
 
-        H = construct_matrix_USUt(vi, eli)
+        H = construct_matrix_USUt(qi, eli)
         return H
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
@@ -119,10 +119,10 @@ class SVDPrec(BaseModel):
         vi, li = S[:, :-1, :], S[:, -1, :]
         # eli = torch.exp(-li)
         eli = torch.exp(-li)
-        # qi = torch.linalg.qr(vi)[0]
-        vi = torch.nn.functional.normalize(vi, dim=1)
+        qi = torch.linalg.qr(vi)[0]
+        # vi = torch.nn.functional.normalize(vi, dim=1)
 
-        Hm1 = construct_matrix_USUt(vi, eli)
+        Hm1 = construct_matrix_USUt(qi, eli)
         return Hm1
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:

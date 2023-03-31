@@ -5,18 +5,18 @@ data:
   data_path: /root/raw_data/data_20.pkl
   nsamples: 20000
 architecture:
-  class: SVDprec
-  rank: 10
-  n_layers: 5
-  neurons_per_layer: 128
+  class: SVDConvolutional
+  rank: 20
+  n_layers: 6
+  neurons_per_layer: 0
   batch_size: 64
-  lr: 1e-5
+  lr: 1e-4
 optimizer:
-  epochs: 200
+  epochs: 10
 DA:
   n_cycle: 5
   n_outer: 5
   n_inner: 100
   model_error_sqrt: 0.5
   obs_error_sqrt: 3.0
-  log_file: /home/smoke/DA_logs.csv
+  log_file: /home/smoke/artifacts/DA_logs.csv

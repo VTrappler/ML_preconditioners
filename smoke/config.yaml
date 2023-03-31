@@ -6,13 +6,13 @@ data:
   nsamples: 20000
 architecture:
   class: SVDConvolutional
-  rank: 20
-  n_layers: 6
+  rank: 15
+  n_layers: 5
   neurons_per_layer: 0
   batch_size: 64
   lr: 1e-4
 optimizer:
-  epochs: 10
+  epochs: 200
 DA:
   n_cycle: 5
   n_outer: 5

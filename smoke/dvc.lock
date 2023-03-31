@@ -1,11 +1,11 @@
-schema: "2.0"
+schema: '2.0'
 stages:
   generate_data:
     cmd: python3.10 /home/prec_data/data_generation.py --config /home/smoke/config.yaml
     deps:
-      - path: ../prec_data/data_generation.py
-        md5: 41700b7d159c86ca16b0d9d547455548
-        size: 4162
+    - path: ../prec_data/data_generation.py
+      md5: 41700b7d159c86ca16b0d9d547455548
+      size: 4162
     params:
       config.yaml:
         data.data_path: /root/raw_data/data_20.pkl
@@ -13,59 +13,57 @@ stages:
         model.dimension: 20
         model.window: 10
     outs:
-      - path: /root/raw_data/data_20.pkl
-        md5: 0a907a1e26b0a784a75500fea097b764
-        size: 680490150
+    - path: /root/raw_data/data_20.pkl
+      md5: 0a907a1e26b0a784a75500fea097b764
+      size: 680490150
   train:
-    cmd:
-      source /home/.set_environment_variables.sh && python3.10 /home/smoke/training.py
+    cmd: source /home/.set_environment_variables.sh && python3.10 /home/smoke/training.py
       --config config.yaml --exp-name smoke_train_tr
     deps:
-      - path: ../prec_data/data.py
-        md5: 30b58de90114f083478c1430cfc979d4
-        size: 13355
-      - path: /root/raw_data/data_20.pkl
-        md5: 0a907a1e26b0a784a75500fea097b764
-        size: 680490150
-      - path: config.yaml
-        md5: 1a6f2e425f6f1e182bf5bd2364cc771e
-        size: 377
-      - path: training.py
-        md5: 74d710414bece56df1d3105668639469
-        size: 3696
+    - path: ../prec_data/data.py
+      md5: 30b58de90114f083478c1430cfc979d4
+      size: 13355
+    - path: /root/raw_data/data_20.pkl
+      md5: 0a907a1e26b0a784a75500fea097b764
+      size: 680490150
+    - path: config.yaml
+      md5: 263a07ed32ceb8a677a85d07f909e61c
+      size: 378
+    - path: training.py
+      md5: 74d710414bece56df1d3105668639469
+      size: 3696
     params:
       config.yaml:
         architecture.batch_size: 64
         architecture.class: SVDConvolutional
-        architecture.n_layers: 6
-        architecture.rank: 20
+        architecture.n_layers: 5
+        architecture.rank: 15
         data.data_path: /root/raw_data/data_20.pkl
         model.dimension: 20
-        optimizer.epochs: 10
+        optimizer.epochs: 200
     outs:
-      - path: artifacts/metrics.yaml
-        md5: 93082b7c198b186214df03a030d39969
-        size: 223
-      - path: artifacts/mlflow_run_id.yaml
-        md5: 22cfe98924a8092ca08ffcb54aeb0d4d
-        size: 79
-      - path: artifacts/training_logs.csv
-        md5: 838116db1e21c32d2cb365d185815ca1
-        size: 4224
+    - path: artifacts/metrics.yaml
+      md5: 4423c4d1d95ea333023088584e27e33e
+      size: 221
+    - path: artifacts/mlflow_run_id.yaml
+      md5: cefa4c8807209dc9a50a0700a9e5a357
+      size: 79
+    - path: artifacts/training_logs.csv
+      md5: 34e69edff8067f6281b66f479c017a6d
+      size: 85703
   data_assim:
-    cmd:
-      source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark.py
+    cmd: source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark.py
       --config config.yaml --run-id-yaml /home/smoke/artifacts/mlflow_run_id.yaml
     deps:
-      - path: artifacts/mlflow_run_id.yaml
-        md5: 22cfe98924a8092ca08ffcb54aeb0d4d
-        size: 79
-      - path: artifacts/training_logs.csv
-        md5: 838116db1e21c32d2cb365d185815ca1
-        size: 4224
-      - path: config.yaml
-        md5: 1a6f2e425f6f1e182bf5bd2364cc771e
-        size: 377
+    - path: artifacts/mlflow_run_id.yaml
+      md5: cefa4c8807209dc9a50a0700a9e5a357
+      size: 79
+    - path: artifacts/training_logs.csv
+      md5: 34e69edff8067f6281b66f479c017a6d
+      size: 85703
+    - path: config.yaml
+      md5: 263a07ed32ceb8a677a85d07f909e61c
+      size: 378
     params:
       config.yaml:
         DA.n_cycle: 5
@@ -73,42 +71,41 @@ stages:
         DA.n_outer: 5
         model.window: 10
     outs:
-      - path: artifacts/DA_logs.csv
-        md5: 0e4a6dd907b1e7273d32e912ecf48b60
-        size: 10358
-      - path: artifacts/res_inner_loop.png
-        md5: 684b14fd4e1bc45d147e6fc2deecbbce
-        size: 99443
+    - path: artifacts/DA_logs.csv
+      md5: 396d17949816547364e1f9c049a5b102
+      size: 10184
+    - path: artifacts/res_inner_loop.png
+      md5: 733d7ceeab6b99dab76dbb8efae17cd6
+      size: 106858
   test:
-    cmd:
-      source /home/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
+    cmd: source /home/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
       /home/smoke/artifacts/mlflow_run_id.yaml
     deps:
-      - path: artifacts/mlflow_run_id.yaml
-        md5: 22cfe98924a8092ca08ffcb54aeb0d4d
-        size: 79
-      - path: config.yaml
-        md5: 1a6f2e425f6f1e182bf5bd2364cc771e
-        size: 377
-      - path: test.py
-        md5: 64b5c913f15be0f08e073bf2bd793077
-        size: 7267
-      - path: training.py
-        md5: 74d710414bece56df1d3105668639469
-        size: 3696
+    - path: artifacts/mlflow_run_id.yaml
+      md5: cefa4c8807209dc9a50a0700a9e5a357
+      size: 79
+    - path: config.yaml
+      md5: 263a07ed32ceb8a677a85d07f909e61c
+      size: 378
+    - path: test.py
+      md5: 64b5c913f15be0f08e073bf2bd793077
+      size: 7267
+    - path: training.py
+      md5: 74d710414bece56df1d3105668639469
+      size: 3696
     params:
       config.yaml:
         data.data_path: /root/raw_data/data_20.pkl
     outs:
-      - path: artifacts/condition_numbers.png
-        md5: 84f75271dc3f08c84a25f2fd2f549fa2
-        size: 36368
-      - path: artifacts/inference_approx.png
-        md5: 4fae300b2d844746e3b14dcdb44b0e50
-        size: 62505
-      - path: artifacts/inference_precondition.png
-        md5: dd4d99b8c29a69141058745c49d0e016
-        size: 46461
-      - path: artifacts/sanity_check.png
-        md5: a2e22c324455e189a3c9e578a58397ad
-        size: 48737
+    - path: artifacts/condition_numbers.png
+      md5: c2214ee4508a3cbd2d8b4cae076819f5
+      size: 24257
+    - path: artifacts/inference_approx.png
+      md5: 0b3a072149b9f55ed7259f5ce2604984
+      size: 61179
+    - path: artifacts/inference_precondition.png
+      md5: 53735d28cb095d1b5d47b016fac5c809
+      size: 43035
+    - path: artifacts/sanity_check.png
+      md5: 2b19b650356e2e7b2fa56dacf19a8dd7
+      size: 47687

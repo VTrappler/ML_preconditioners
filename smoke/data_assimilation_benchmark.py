@@ -54,10 +54,12 @@ def construct_matrices(loaded_model, x_):
     return mats, prec
 
 
-def construct_svd_ML(loaded_model, x_):
+def construct_svd_ML(loaded_model, x_, qr=False):
     pred = loaded_model.predict(np.asarray(x_).astype("f"))
     Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
     Sr = np.exp(logsvals)
+    if qr:
+        Ur = bqr(Ur)
     # Ur = bqr(vecs)
     # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
     return Sr.squeeze(), Ur.squeeze()
@@ -188,8 +190,8 @@ def main(config, loaded_model=None):
             approx, prec = sumLMP_ML(loaded_model, x.reshape(1, n))
             return prec.squeeze()
 
-        def MLpreconditioner_svd(x):
-            return construct_svd_ML(loaded_model, x.reshape(1, n))
+        def MLpreconditioner_svd(x, qr=False):
+            return construct_svd_ML(loaded_model, x.reshape(1, n), qr)
 
         DA_diag = create_DA_experiment(
             "diagnostic",
@@ -214,7 +216,10 @@ def main(config, loaded_model=None):
 
     DA_deflation = create_DA_experiment(
         "deflation_ML",
-        prec={"prec_name": MLpreconditioner_svd, "prec_type": "deflation"},
+        prec={
+            "prec_name": lambda x: MLpreconditioner_svd(x, qr=True),
+            "prec_type": "deflation",
+        },
     )
     l_model_randobs.r = config["architecture"]["rank"]
     # DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")

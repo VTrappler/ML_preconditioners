@@ -28,7 +28,7 @@ class ParallelConv1DDilations(torch.nn.Module):
         self.padding_mode = "circular"
         self.dilation_list = dilation_list
         self.kernel_size = kernel_size
-        self.conv_layers_dilations = []
+        self.conv_layers_dilations = [torch.nn.BatchNorm1d(1)]
         self.skip_connection = skip
         for dilation in self.dilation_list:
             self.conv_layers_dilations.append(
@@ -52,7 +52,7 @@ class ParallelConv1DDilations(torch.nn.Module):
 class PeriodicConv1DBlock(torch.nn.Module):
     def __init__(
         self,
-        n_channels_in,
+        n_channels_in: int,
         n_channels: int,
         kernel_size: int,
         n_layers: int,
@@ -122,7 +122,7 @@ class ConvLayersSVD(torch.nn.Module):
             ),
         )
 
-        self.param_sig = ParamSigmoid(-5, 5, 0)
+        self.param_sig = ParamSigmoid(0, 10, 0)
         self.mlp_singval = torch.nn.Sequential(
             torch.nn.Linear(
                 (self.n_latent) * self.state_dimension,  # for skip connection

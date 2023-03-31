@@ -1,5 +1,0 @@
-DA:
-  n_cycle: 5
-  n_outer: 10
-  n_inner: 100
-  log_file: /home/smoke/DA_logs.csv

@@ -49,7 +49,7 @@ def construct_matrices(loaded_model, x_):
     mats = bmm(qi, (sv[..., None] * bt(qi)))
     prec = bmm(qi, (inv_sv[..., None] * bt(qi))) + np.eye(vecs.shape[1])
     logging.info(f"svd approximation= {np.linalg.svd(mats)[1]}")
-    logging.info(f"svd preconditioner= {np.linalg.svd(prec)[1]}")
+    # logging.info(f"svd preconditioner= {np.linalg.svd(prec)[1]}")
 
     return mats, prec
 
@@ -80,11 +80,12 @@ def sumLMP_exact(num_model, x_, rk):
     return np.eye(n) - acc
 
 
-def sumLMP_ML(loaded_model, x_):
+def sumLMP_ML(loaded_model, x_, qr=True):
     pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
     Sr = np.exp(logsvals)
-    Ur = bqr(vecs)
+    if qr:
+        Ur = bqr(Ur)
     n = Ur.shape[1]
     r = Ur.shape[-1]
     acc = np.zeros((len(pred), n, n))
@@ -152,7 +153,7 @@ def main(config, loaded_model=None):
             obs_error_sqrt=config["DA"]["obs_error_sqrt"],
         )
 
-    obs, x_t, truth = get_next_obs(x0_t)
+    # obs, x_t, truth = get_next_obs(x0_t)
 
     n_cycle = config["DA"]["n_cycle"]  # 3
     n_outer = config["DA"]["n_outer"]  # 10
@@ -186,9 +187,13 @@ def main(config, loaded_model=None):
 
     if loaded_model is not None:
 
-        def MLpreconditioner(x):
-            approx, prec = sumLMP_ML(loaded_model, x.reshape(1, n))
+        def MLpreconditioner_LMP(x):
+            _, prec = sumLMP_ML(loaded_model, x.reshape(1, n), qr=True)
             return prec.squeeze()
+
+        _ = create_DA_experiment(
+            "ML_LMP", prec={"prec_name": MLpreconditioner_LMP, "prec_type": "right"}
+        )
 
         def MLpreconditioner_svd(x, qr=False):
             return construct_svd_ML(loaded_model, x.reshape(1, n), qr)
@@ -198,16 +203,12 @@ def main(config, loaded_model=None):
             prec={"prec_name": MLpreconditioner_svd, "prec_type": "svd_diagnostic"},
         )
 
-        create_DA_experiment(
-            "ML_LMP", prec={"prec_name": MLpreconditioner, "prec_type": "right"}
-        )
-
     def sumLMP_preconditioner(x):
         return sumLMP_exact(l_model_randobs, x, config["architecture"]["rank"])
 
-    # DA_sumLMP = create_DA_experiment(
-    #     "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "left"}
-    # )
+    DA_sumLMP = create_DA_experiment(
+        "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "left"}
+    )
 
     def deflation_preconditioner(x):
         return construct_projector_exact(
@@ -234,6 +235,7 @@ def main(config, loaded_model=None):
             f"C{i}", label=DA_exp.exp_name, cumulative=False
         )
     plt.legend()
+    plt.ylim([1e-9, 1e2])
     plt.savefig(os.path.join(artifacts_path, "res_inner_loop.png"))
     plt.close()
 

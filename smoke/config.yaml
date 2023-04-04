@@ -1,16 +1,17 @@
 model:
-  dimension: 20
+  dimension: 40
   window: 10
 data:
-  data_path: /root/raw_data/data_20.pkl
-  nsamples: 20000
+  data_path: /root/raw_data/data_40.pkl
+  nsamples: 10000
 architecture:
   class: SVDConvolutional
-  rank: 15
-  n_layers: 5
+  rank: 30
+  n_layers: 6
   neurons_per_layer: 0
-  batch_size: 64
+  batch_size: 32
   lr: 1e-4
+  n_rnd_vectors: 5
 optimizer:
   epochs: 200
 DA:

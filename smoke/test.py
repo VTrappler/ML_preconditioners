@@ -80,15 +80,15 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
     return B
 
 
-def construct_matrices(x_):
-    outputs = loaded_model.predict(np.asarray(x_).astype("f"))
-    S, AS = outputs[..., 0], outputs[..., 1]
-    return construct_invLMP(S, AS), construct_LMP(S, AS)
+# def construct_matrices(x_):
+#     outputs = loaded_model.predict(np.asarray(x_).astype("f"))
+#     S, AS = outputs[..., 0], outputs[..., 1]
+#     return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
 def construct_matrices(x_):
     Sr, Ur = construct_svd_ML(loaded_model, x_)
-    Sr_minus_1 = Sr - 1
+    Sr_minus_1 = Sr ** (-1) - 1
     # H = construct_matrix_USUt(qi, eli)
     lr_approximation = bmm(Ur, (Sr[..., None] * bt(Ur)))
     prec = bmm(Ur, (Sr_minus_1[..., None] * bt(Ur))) + np.eye(Ur.shape[1])
@@ -112,7 +112,7 @@ def construct_svd_ML(loaded_model, x_):
 
 
 def gauss_newton_approximation_svd(
-    x_, tlm_, indices, figname=os.path.join(fig_folder, "inference_approx")
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximatoin")
 ):
     for j, idx in enumerate(indices):
         plt.subplot(3, 5, 1 + j)
@@ -158,8 +158,9 @@ def preconditioned_svd(
     preconditioners,
     tlm_,
     indices,
-    figname=os.path.join(fig_folder, "inference_precondition"),
+    figname=os.path.join(fig_folder, "preconditioning"),
 ):
+    plt.figure(figsize=(10, 6))
     for j, idx in enumerate(indices):
         plt.subplot(2, 5, 1 + j)
         tl = tlm_[idx, ...]
@@ -168,7 +169,13 @@ def preconditioned_svd(
         plt.imshow(preconditioned_gn)
         plt.subplot(2, 5, 6 + j)
         _, sv, _ = np.linalg.svd(preconditioned_gn)
-        plt.plot(sv)
+        plt.plot(sv, label="p")
+        _, sv_original, _ = np.linalg.svd(gn)
+        plt.plot(sv_original, label="GN")
+        plt.title(
+            f"k: {np.linalg.cond(gn):.2e}\nk_p = {np.linalg.cond(preconditioned_gn):.2e}"
+        )
+        plt.yscale("log")
     plt.tight_layout()
     plt.savefig(figname)
     plt.close()
@@ -234,22 +241,24 @@ if __name__ == "__main__":
     indices = np.random.randint(0, len(x_), size=5)
 
     range_singular_values(tlm_)
-
+    print("svd approximation")
     gauss_newton_approximation_svd(
-        x_, tlm_, indices, figname=os.path.join(fig_folder, "inference_approx")
+        x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
     )
-
+    print("preconditioning")
     preconditioned_svd(
         preconditioners,
         tlm_,
         indices,
-        figname=os.path.join(fig_folder, "inference_precondition"),
+        figname=os.path.join(fig_folder, "preconditioning"),
     )
 
+    print("condition numbers")
     condition_numbers(
         preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
     )
 
+    print("sanity check")
     sanity_check(
         approximations,
         preconditioners,

@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from torch import nn
 
@@ -165,10 +165,43 @@ class SVDPrec(BaseModel):
         return {"loss": loss, "gtg": GtGdx.detach(), "y_hat": GtGdx_hat.detach()}
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
-        if self.datatype == "full":
+        if (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors(batch, batch_idx, stage)
+        elif self.datatype == "full":
             return self._common_step_full_norm(batch, batch_idx, stage)
         elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
+    
+        
+    def _common_step_randomvectors(self, batch: Tuple, batch_idx: int, stage: str):
+        x, forw, tlm = batch
+        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        # Add here the addition
+        ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
+        z_random = torch.randn(size=(1, self.state_dimension, self.n_rnd_vectors))
+        x = x.view(x.size(0), -1)
+        y_hatinv = self.construct_preconditioner(x)
+        GtG_approx = self.construct_approx(x)
+        GtG_approx_Z = GtG_approx @ z_random
+        GtG_Z = GTG @ z_random
+        # y_hat = self.construct_LMP(S, AS, 1)
+
+        regul = Regularization(self, stage)
+
+        mse_approx = self.mse(GtG_approx_Z, GtG_Z)
+        # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
+
+        vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
+            :, :-1, :
+        ]
+        vi = torch.nn.functional.normalize(vi, dim=1)
+
+        ortho_reg = regul.loss_gram_matrix(vi)
+        loss = mse_approx + ortho_reg  # + 0.5 * reg
+        self.log(f"Loss/{stage}_loss", loss, prog_bar=True)
+        self.log(f"Loss/{stage}_mse_approx", mse_approx)
+        return {"loss": loss}
+
 
 
 class SVDConvolutional(SVDPrec):

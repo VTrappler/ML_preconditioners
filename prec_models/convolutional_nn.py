@@ -28,7 +28,7 @@ class ParallelConv1DDilations(torch.nn.Module):
         self.padding_mode = "circular"
         self.dilation_list = dilation_list
         self.kernel_size = kernel_size
-        self.conv_layers_dilations = [torch.nn.BatchNorm1d(1)]
+        self.conv_layers_dilations = []
         self.skip_connection = skip
         for dilation in self.dilation_list:
             self.conv_layers_dilations.append(

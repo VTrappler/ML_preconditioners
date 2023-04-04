@@ -6,16 +6,37 @@ import argparse
 import os
 
 import mlflow
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
+from lightning.pytorch.callbacks import RichProgressBar
+from lightning.pytorch.loggers import MLFlowLogger
+from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
+
+# create your own theme!
+
+
 from omegaconf import OmegaConf
-from pytorch_lightning.loggers import CSVLogger
+from lightning.pytorch.loggers import CSVLogger
 
 from prec_data.data import TangentLinearDataModule
 from prec_models import construct_model_class
-from prec_models.models_spectral import SVDConvolutional, SVDPrec, DeflationPrec
-from prec_models.models_limitedmemoryprec import LMPPrec, LimitedMemoryPrecRegularized
+from prec_models.models_limitedmemoryprec import LimitedMemoryPrecRegularized, LMPPrec
+from prec_models.models_spectral import DeflationPrec, SVDConvolutional, SVDPrec
 from prec_models.models_unstructured import LowRank
+
+progress_bar = RichProgressBar(
+    theme=RichProgressBarTheme(
+        description="green_yellow",
+        progress_bar="green1",
+        progress_bar_finished="green1",
+        progress_bar_pulse="#6206E0",
+        batch_progress="green_yellow",
+        time="grey82",
+        processing_speed="grey82",
+        metrics="grey82",
+    )
+)
+
 
 logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
 smoke_path = os.path.join(os.sep, "home", "smoke")
@@ -35,9 +56,21 @@ model_classes = {cl.__name__: cl for cl in model_list}
 
 
 def main(config):
+    mlflow.set_experiment("smoke_train_tr")
     mlflow.pytorch.autolog(
         log_models=False
     )  # Logging model with signature at the end instead
+    mlflow.start_run(run_name="ttt")
+    run = mlflow.active_run()
+    print(f"{run=}")
+    print("Active run_id: {}".format(run.info.run_id))
+    mlf_logger = MLFlowLogger(
+        experiment_name=mlflow.get_experiment(
+            mlflow.active_run().info.experiment_id
+        ).name,
+        run_id=run.info.run_id,
+    )
+
     state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
 
@@ -53,9 +86,6 @@ def main(config):
     mlflow.log_params(config["data"])
     config["optimizer"].pop("lr", None)
     mlflow.log_params(config["optimizer"])
-
-    run = mlflow.active_run()
-    print("Active run_id: {}".format(run.info.run_id))
     with open(os.path.join(artifacts_path, "mlflow_run_id.yaml"), "w") as fh:
         run_id_dict = {"run_id": run.info.run_id, "data_path": data_path}
         OmegaConf.save(config=run_id_dict, f=fh)
@@ -70,7 +100,8 @@ def main(config):
     )
     trainer = pl.Trainer(
         max_epochs=config["optimizer"]["epochs"],
-        logger=CSVLogger(logs_path, version="smoke"),
+        logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
+        callbacks=[progress_bar],
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)

@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import numpy as np
 from torchvision import transforms
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 
@@ -117,15 +117,15 @@ class BaseModel(pl.LightningModule):
         pl.LightningModule.__init__(self)
         # super().__init__()
         self.state_dimension = state_dimension
-        if "lr" in config:
-            self.lr = config["lr"]
-        else:
-            self.lr = 1e-4
+
         self.n_layers = config["n_layers"]
         self.neurons_per_layer = config["neurons_per_layer"]
         self.mse = F.mse_loss
         self.batch_size = config["batch_size"]
         self.identity = batch_identity_matrix(self.batch_size, self.state_dimension)
+
+        self.lr = config.get("lr", 1e-4)  # <-- No default specified -- defaults to None
+        self.n_rnd_vectors = config.get("n_rnd_vectors", None)  # <-- No default specified -- defaults to None
 
     def forward(self, x):
         layers = self.layers(x)
@@ -192,7 +192,7 @@ class BaseModel(pl.LightningModule):
 
         loss = self.loss(y_hat, product, identity)
 
-        self.log(f"Loss/{stage}_loss", loss)
+        self.log(f"Loss/{stage}_loss", loss, prob_bar=True)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hat.detach()}
 
     def training_step(self, batch, batch_idx):

@@ -60,7 +60,7 @@ def main(config):
     mlflow.pytorch.autolog(
         log_models=False
     )  # Logging model with signature at the end instead
-    mlflow.start_run(run_name="ttt")
+    mlflow.start_run()
     run = mlflow.active_run()
     print(f"{run=}")
     print("Active run_id: {}".format(run.info.run_id))

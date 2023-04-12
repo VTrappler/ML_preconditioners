@@ -7,7 +7,7 @@ class ObservationError:
         self.obs_error_covariance_matrix = np.eye(dim)
 
 
-class ObservationArrayMatrix(ObservationError):
+class ObservationErrorArray(ObservationError):
     def __init__(self, dim, path) -> None:
         super().__init__(dim)
         self.load_array(path=path)

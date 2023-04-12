@@ -57,7 +57,13 @@ class GaussNewtonDataset(Dataset):
         self.data = data
         self.Bmatrix_inv = inverse_background_error_covariance
         self.Bhalf = bck_preconditioned
-        self.Rmatrix_inv = inverse_observation_error_covariance
+
+        if inverse_observation_error_covariance is None:
+            x0, f0, t0 = self.data[0]
+            m = t0.shape[0]
+            self.Rmatrix_inv = np.eye(m)
+        else:
+            self.Rmatrix_inv = inverse_observation_error_covariance
 
     def __len__(self):
         return len(self.data)
@@ -193,30 +199,32 @@ class GaussNewtonDataModule(pl.LightningDataModule):
     def setup(self, stage):
         if self.bck_covariance_matrix_path is not None:
             bck_error = BackgroundErrorArray(
-                dim=self.dim, path=self._error_covariance_matrix_path
+                dim=self.dim, path=self.bck_covariance_matrix_path
             )
         else:
             bck_error = BackgroundError(dim=self.dim)
 
-        if self.obs_covariance_matrix_path is None:
-            obs_error = ObservationError(dim=self.dim)
+        # if self.obs_covariance_matrix_path is None:
+        #     obs_error = ObservationError(dim=self.dim)
+
+        print(bck_error.bck_error_covariance_matrix)
+        # print(obs_error.obs_error_covariance_matrix)
 
         with open(self.path, "rb") as handle:
-            tangentlinear_dataset = GaussNewtonDataset(
+            gaussnewton_dataset = GaussNewtonDataset(
                 pickle.load(handle),
                 inverse_background_error_covariance=bck_error.inv_bck_error_covariance_matrix,
-                inverse_observation_error_covariance=obs_error.inv_obs_error_covariance_matrix,
+                inverse_observation_error_covariance=None,
             )
-        total_len = len(tangentlinear_dataset)
+        total_len = len(gaussnewton_dataset)
         if self.fractional:
             splitting_lengths = [int(total_len * n) for n in self.splitting_lengths]
         else:
             splitting_lengths = self.splitting_lengths
 
         self.train, self.val, self.test = torch.utils.data.random_split(
-            tangentlinear_dataset, splitting_lengths
+            gaussnewton_dataset, splitting_lengths
         )
-        self.norm_cst = tangentlinear_dataset.norm_cst
 
     def train_dataloader(self):
         return DataLoader(

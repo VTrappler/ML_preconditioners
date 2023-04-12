@@ -2,27 +2,27 @@ params:
   - config.yaml
 vars:
   - abs_path: /home
-  - smoke_path: /home/smoke_bck
+  - smoke_path: /home/training_with_bck
   - data_path: /root/raw_data
-  - artifacts_path: /home/smoke_bck/artifacts
+  - artifacts_path: /home/training_with_bck/artifacts
 
 stages:
-  generate_data:
-    cmd: >-
-      python3.10 ${abs_path}/prec_data/data_generation.py
-      --config ${smoke_path}/config.yaml
-    deps:
-      - ${abs_path}/prec_data/data_generation.py
-    params:
-      - config.yaml:
-          - model.dimension
-          - model.window
-          - data.nsamples
-          - data.data_path
-    vars:
-      - config.yaml:data
-    outs:
-      - ${data.data_path}
+  # generate_data:
+  #   cmd: >-
+  #     python3.10 ${abs_path}/prec_data/data_generation.py
+  #     --config ${smoke_path}/config.yaml
+  #   deps:
+  #     - ${abs_path}/prec_data/data_generation.py
+  #   params:
+  #     - config.yaml:
+  #         - model.dimension
+  #         - model.window
+  #         - data.nsamples
+  #         - data.data_path
+  #   vars:
+  #     - config.yaml:data
+  #   outs:
+  #     - ${data.data_path}
 
   train:
     vars:
@@ -31,7 +31,7 @@ stages:
       source ${abs_path}/.set_environment_variables.sh &&
       python3.10 ${smoke_path}/training.py
       --config config.yaml
-      --exp-name smoke_train_tr
+      --exp-name training_with_bck
     deps:
       - config.yaml
       - training.py

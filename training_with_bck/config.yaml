@@ -10,10 +10,10 @@ architecture:
   n_layers: 6
   neurons_per_layer: 0
   batch_size: 4
-  lr: 1e-4
-  n_rnd_vectors: 20
+  lr: 1e-3
+  n_rnd_vectors: 30
 optimizer:
-  epochs: 400
+  epochs: 100
 DA:
   n_cycle: 5
   n_outer: 5

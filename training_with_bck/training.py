@@ -38,8 +38,8 @@ progress_bar = RichProgressBar(
 )
 
 
-logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
-smoke_path = os.path.join(os.sep, "home", "smoke")
+logs_path = os.path.join(os.sep, "root", "log_dump", "training_with_bck")
+smoke_path = os.path.join(os.sep, "home", "training_with_bck")
 artifacts_path = os.path.join(smoke_path, "artifacts")
 
 
@@ -56,7 +56,7 @@ model_classes = {cl.__name__: cl for cl in model_list}
 
 
 def main(config):
-    mlflow.set_experiment("smoke_train_tr")
+    mlflow.set_experiment("train_with_bck")
     mlflow.pytorch.autolog(
         log_models=False
     )  # Logging model with signature at the end instead
@@ -112,10 +112,8 @@ def main(config):
     forw = model.forward(test_input)
     print(f"{forw.shape=}")
 
-    #     mats = model.construct_full_matrix(forw)
-    #     print(f"{mats.shape=}")
-    #     print(f"{mats}")
     trainer.fit(model, datamodule)
+
     print(trainer.logged_metrics)
     shutil.copyfile(
         os.path.join(logs_path, "lightning_logs", "smoke", "metrics.csv"),
@@ -130,7 +128,7 @@ def main(config):
     signature = mlflow.models.signature.infer_signature(
         test_input.detach().numpy(), forw.detach().numpy()
     )
-    mlflow.pytorch.log_model(model, "smoke_model", signature=signature)
+    mlflow.pytorch.log_model(model, "GN_SVD_bck", signature=signature)
 
 
 if __name__ == "__main__":

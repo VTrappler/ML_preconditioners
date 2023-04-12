@@ -1,0 +1,16 @@
+/DA_logs.csv
+# /res_inner_loop.png
+# /condition_numbers.png
+# /inference_approx.png
+# /inference_precondition.png
+# /sanity_check.png
+/mlflow_run_id.yaml
+/training_logs.csv
+/metrics.yaml
+/condition_numbers.png
+/inference_approx.png
+/inference_precondition.png
+/sanity_check.png
+/res_inner_loop.png
+/svd_approximation.png
+/preconditioning.png

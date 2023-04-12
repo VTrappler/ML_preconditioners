@@ -1,5 +1,5 @@
 from prec_data.data import CholeskyDataModule
-from prec_models.models import BandMatrix, LimitedMemoryPrec
+from prec_models.__models import BandMatrix, LimitedMemoryPrec
 import torch
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl

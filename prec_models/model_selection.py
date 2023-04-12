@@ -6,7 +6,7 @@ sys.path.append("..")
 
 from data import TangentLinearDataModule
 from lorenz_wrapper import LorenzWrapper
-from models import (
+from prec_models.__models import (
     LimitedMemoryPrecLinearOperator,
     construct_model_class,
     LimitedMemoryPrec,
@@ -14,7 +14,7 @@ from models import (
     LimitedMemoryPrecVectorNorm,
     LimitedMemoryPrecSym,
     DeflationPrec,
-    SVDPrec
+    SVDPrec,
 )
 from models_unstructured import BandMatrix, LowRank
 import pandas as pd

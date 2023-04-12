@@ -29,7 +29,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 
 from prec_data.data import TangentLinearDataModule, LorenzTLVectorIterableDataModule
 
-import prec_models.models as models
+import prec_models.__models as __models
 import prec_models.models_unstructured as models_unstructured
 
 from models import (

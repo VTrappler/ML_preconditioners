@@ -179,6 +179,10 @@ class BaseModel(pl.LightningModule):
         x, forw, tlm = batch
         return torch.bmm(tlm.mT, tlm)
 
+    def set_gauss_newton_matrix_from_batch_function(self, func):
+        """func (batch) -> torch tensor where batch x, forw, tlm"""
+        self._construct_gaussnewtonmatrix = func
+
     def _common_step(self, batch, batch_idx, stage):
         x, forw, tlm = batch
         GTG = self._construct_gaussnewtonmatrix(

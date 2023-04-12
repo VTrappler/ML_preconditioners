@@ -14,7 +14,7 @@ from .base_models import (
     construct_MLP,
     construct_model_class,
     eye_like,
-    bgramschmidt
+    bgramschmidt,
 )
 
 
@@ -101,18 +101,17 @@ class LowRank(BaseModel):
         return LLT + eye_like(LLT)
 
     def construct_inverse_matrix(self, L_lower):
-        LTL = torch.bmm(
-            L_lower.transpose(1, 2), L_lower
-        )
+        LTL = torch.bmm(L_lower.transpose(1, 2), L_lower)
         Ir = eye_like(LTL)
-        right = torch.bmm(L_lower, torch.bmm(torch.linalg.inv(Ir + LTL), L_lower.transpose(1, 2)))
+        right = torch.bmm(
+            L_lower, torch.bmm(torch.linalg.inv(Ir + LTL), L_lower.transpose(1, 2))
+        )
         return eye_like(right) - right
 
     def inference(self, x: torch.Tensor, data_norm=1.0) -> torch.Tensor:
         if not self.training:
             S = self.forward(torch.atleast_2d(x))
         return self.construct_inverse_matrix(S) / data_norm
-
 
     def loss(
         self, y_hat: torch.Tensor, product: torch.Tensor, identity: torch.Tensor
@@ -123,8 +122,8 @@ class LowRank(BaseModel):
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(
-            tlm.transpose(1, 2), tlm
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
         )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
@@ -145,8 +144,8 @@ class LowRank(BaseModel):
         cross_inner_products = torch.sum(torch.triu(gram_matrix, diagonal=1) ** 2)
         # loss = self.loss(y_hat, product, self.identity)
         mse = self.mse(y_hatinv, GTG)
-        reg =  cross_inner_products# + self.mse(AtrueS, AS)
-        loss = mse + 0.1*reg
+        reg = cross_inner_products  # + self.mse(AtrueS, AS)
+        loss = mse + 0.1 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse", mse)
         self.log(f"Loss/{stage}_regul", reg)
@@ -198,4 +197,3 @@ class BandMatrixCond(BandMatrix):
     ) -> torch.Tensor:
         condi = torch.linalg.cond(product).mean()
         return condi
-

@@ -127,7 +127,9 @@ class SVDPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -171,8 +173,7 @@ class SVDPrec(BaseModel):
             return self._common_step_full_norm(batch, batch_idx, stage)
         elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
-    
-        
+
     def _common_step_randomvectors(self, batch: Tuple, batch_idx: int, stage: str):
         x, forw, tlm = batch
         GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
@@ -201,7 +202,6 @@ class SVDPrec(BaseModel):
         self.log(f"Loss/{stage}_loss", loss, prog_bar=True)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
         return {"loss": loss}
-
 
 
 class SVDConvolutional(SVDPrec):
@@ -319,7 +319,9 @@ class DeflationPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)

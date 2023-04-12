@@ -98,7 +98,10 @@ class LimitedMemoryPrec(BaseModel):
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
+
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -225,7 +228,9 @@ class LMPPrec(BaseModel):
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -290,7 +295,7 @@ class LimitedMemoryPrecRegularized(LimitedMemoryPrec):
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)
+        GTG = self._construct_gaussnewtonmatrix(batch)
         # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
@@ -337,7 +342,9 @@ class LimitedMemoryPrecSym(LimitedMemoryPrec):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
@@ -441,7 +448,9 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)

@@ -125,7 +125,9 @@ class BaseModel(pl.LightningModule):
         self.identity = batch_identity_matrix(self.batch_size, self.state_dimension)
 
         self.lr = config.get("lr", 1e-4)  # <-- No default specified -- defaults to None
-        self.n_rnd_vectors = config.get("n_rnd_vectors", None)  # <-- No default specified -- defaults to None
+        self.n_rnd_vectors = config.get(
+            "n_rnd_vectors", None
+        )  # <-- No default specified -- defaults to None
 
     def forward(self, x):
         layers = self.layers(x)
@@ -173,9 +175,15 @@ class BaseModel(pl.LightningModule):
     #         im = transforms.ToTensor()(im)
     #         tb.add_image("identity_matrix", im, global_step=self.current_epoch)
 
+    def _construct_gaussnewtonmatrix(self, batch):
+        x, forw, tlm = batch
+        return torch.bmm(tlm.mT, tlm)
+
     def _common_step(self, batch, batch_idx, stage):
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
+        GTG = self._construct_gaussnewtonmatrix(
+            self, batch
+        )  # Get the GN approximation of the Hessian matrix
 
         x = x.view(x.size(0), -1)
         L_lower = self.forward(x)

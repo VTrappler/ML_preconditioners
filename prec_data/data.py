@@ -44,6 +44,30 @@ class TangentLinearDataset(Dataset):
         return torch.Tensor(x), torch.Tensor(forward), torch.Tensor(tlm / self.norm_cst)
 
 
+class GaussNewtonDataset(Dataset):
+    def __init__(
+        self,
+        data,
+        inverse_background_error_covariance,
+        inverse_observation_error_covariance,
+        bck_preconditioned=None,
+    ):
+        self.data = data
+        self.Bmatrix_inv = inverse_background_error_covariance
+        self.Bhalf = bck_preconditioned
+        self.Rmatrix_inv = inverse_observation_error_covariance
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        x, forward, tlm = self.data[idx]
+        gauss_newton = tlm.T @ self.Rmatrix_inv @ tlm + self.Bmatrix_inv
+        if self.Bhalf is not None:
+            gauss_newton = self.Bhalf.T @ gauss_newton @ self.Bhalf  # Precondition
+        return torch.Tensor(x), torch.Tensor(forward), torch.Tensor(gauss_newton)
+
+
 class TangentLinearVectorDataset(Dataset):
     def __init__(self, data):
         self.pairs = data

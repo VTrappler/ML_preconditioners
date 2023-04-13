@@ -124,10 +124,8 @@ class BaseModel(pl.LightningModule):
         self.batch_size = config["batch_size"]
         self.identity = batch_identity_matrix(self.batch_size, self.state_dimension)
 
-        self.lr = config.get("lr", 1e-4)  # <-- No default specified -- defaults to None
-        self.n_rnd_vectors = config.get(
-            "n_rnd_vectors", None
-        )  # <-- No default specified -- defaults to None
+        self.lr = config.get("lr", 1e-4)  # <-- defaults to 1e-4
+        self.n_rnd_vectors = config.get("n_rnd_vectors", None)  # <--  defaults to None
 
     def forward(self, x):
         layers = self.layers(x)

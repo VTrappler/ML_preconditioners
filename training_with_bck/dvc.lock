@@ -18,7 +18,7 @@ stages:
       size: 4048570129
   train:
     cmd: source /home/.set_environment_variables.sh && python3.10 /home/training_with_bck/training.py
-      --config config.yaml --exp-name training_with_bck
+      --config config.yaml --exp-name train_with_bck
     deps:
     - path: ../prec_data/data.py
       md5: dd5a7a9c868d112232ea829e845b389c
@@ -27,7 +27,7 @@ stages:
       md5: 19e71509c18e86099b17705ff10eaeee
       size: 4048570129
     - path: config.yaml
-      md5: cd6d5afc59da7c0a8fc3be7829d8e398
+      md5: 248ffa561bd7bccb879c4d475dbaf888
       size: 398
     - path: training.py
       md5: 4ed904c92f732d0947b589fe637c9e3c
@@ -43,14 +43,14 @@ stages:
         optimizer.epochs: 100
     outs:
     - path: artifacts/metrics.yaml
-      md5: f3f5d7473249ceadf5ec8ead72a32ba6
-      size: 203
+      md5: 0b6556ea7f224b7df8b214b6f62ce26d
+      size: 211
     - path: artifacts/mlflow_run_id.yaml
-      md5: 560654cc0e38acbd6d9c135623ced14f
+      md5: 319c4e13e6a9a74e4191ee27e73e50e5
       size: 80
     - path: artifacts/training_logs.csv
-      md5: 0e4755952b992faff77652a3533c3710
-      size: 12268
+      md5: 5fd77f06f080224c54d4b9daadf1cae4
+      size: 132209
   data_assim:
     cmd: source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark.py
       --config config.yaml --run-id-yaml /home/smoke/artifacts/mlflow_run_id.yaml

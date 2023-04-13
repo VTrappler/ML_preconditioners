@@ -176,14 +176,12 @@ class SVDPrec(BaseModel):
 
     def _common_step_randomvectors(self, batch: Tuple, batch_idx: int, stage: str):
         x, forw, tlm = batch
-        GTG = torch.bmm(tlm.mT, tlm)  # Get the GN approximation of the Hessian matrix
-        # Add here the addition
-        ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
+        GTG = self._construct_gaussnewtonmatrix(batch)
+        # Get the GN approximation of the Hessian matrix
         z_random = torch.randn(size=(1, self.state_dimension, self.n_rnd_vectors))
         x = x.view(x.size(0), -1)
         y_hatinv = self.construct_preconditioner(x)
-        GtG_approx = self.construct_approx(x)
-        GtG_approx_Z = GtG_approx @ z_random
+        GtG_approx_Z = self.construct_approx(x) @ z_random
         GtG_Z = GTG @ z_random
         # y_hat = self.construct_LMP(S, AS, 1)
 

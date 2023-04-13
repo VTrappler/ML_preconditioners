@@ -31,7 +31,7 @@ stages:
       source ${abs_path}/.set_environment_variables.sh &&
       python3.10 ${smoke_path}/training.py
       --config config.yaml
-      --exp-name training_with_bck
+      --exp-name train_with_bck
     deps:
       - config.yaml
       - training.py

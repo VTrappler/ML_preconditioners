@@ -1,6 +1,5 @@
 from typing import List, Optional, Tuple
-import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from torch import nn
 
@@ -130,8 +129,19 @@ class LimitedMemoryPrec(BaseModel):
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
 
     def construct_LMP(
-        self, S: torch.Tensor, AS: torch.Tensor, shift: float
+        self, S: torch.Tensor, AS: torch.Tensor, shift: float = 1.0
     ) -> torch.Tensor:
+        """Construct a LMP using S, and AS, ie approx of A^-1
+
+        :param S: r Column vectors (batch x n x r)
+        :type S: torch.Tensor
+        :param AS: A @ column vectors (batch x n x r)
+        :type AS: torch.Tensor
+        :param shift: shift factor, defaults to 1.0
+        :type shift: float
+        :return: Preconditioner (~A^-1)
+        :rtype: torch.Tensor
+        """
         In = batch_identity_matrix(S.shape[0], self.state_dimension)
         StASm1 = torch.linalg.inv(torch.bmm(S.mT, AS))
         left = In - torch.bmm(torch.bmm(S, StASm1), AS.mT)
@@ -141,8 +151,19 @@ class LimitedMemoryPrec(BaseModel):
         return H
 
     def construct_invLMP(
-        self, S: torch.Tensor, AS: torch.Tensor, shift: float
+        self, S: torch.Tensor, AS: torch.Tensor, shift: float = 1.0
     ) -> torch.Tensor:
+        """Construct the inverse of the preconditioner, ie approx of A
+
+        :param S: r Column vectors (batch x n x r)
+        :type S: torch.Tensor
+        :param AS: A @ column vectors (batch x n x r)
+        :type AS: torch.Tensor
+        :param shift: shift factor, defaults to 1.0
+        :type shift: float, optional
+        :return: Inverse of preconditioner
+        :rtype: torch.Tensor
+        """
         In = batch_identity_matrix(S.shape[0], self.state_dimension)
         StASm1 = torch.linalg.inv(torch.bmm(S.mT, AS))
         B = (
@@ -156,27 +177,21 @@ class LimitedMemoryPrec(BaseModel):
         return B
 
 
-class LMPPrec(BaseModel):
+class LMP(LimitedMemoryPrec):
     def __init__(
         self,
         state_dimension: int,
         rank: int,
         config: dict,
-        datatype: str = "full",
-        n_layers_AS: Optional[int] = None,
     ) -> None:
         """
         config: dict with keys n_layers, neurons_per_layer, batch_size,
         """
         # super().__init__()
-        super().__init__(state_dimension, config)
+        super().__init__(state_dimension, rank, config, "full", True, None)
         self.rank = rank
         self.n_out = int(rank * state_dimension)
-        self.datatype = datatype
-        if n_layers_AS is None:
-            self.n_layers_AS = self.n_layers
-        else:
-            self.n_layers_AS = n_layers_AS
+        self.n_layers_AS = self.n_layers
 
         ## Construction of the MLP
         ### Construction of the input layer
@@ -209,7 +224,9 @@ class LMPPrec(BaseModel):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         S = self.layers(x)
         AS = self.layersAS(S).reshape(len(x), self.state_dimension, self.rank)
-        return np.stack([S, AS], axis=-1)
+        return torch.stack(
+            [S.reshape(len(x), self.state_dimension, self.rank), AS], axis=-1
+        )
 
     def inference(
         self, x: torch.Tensor, shift: float = 1, data_norm: float = 1.0
@@ -246,39 +263,12 @@ class LMPPrec(BaseModel):
 
         # loss = self.loss(y_hat, product, self.identity)
         mse = self.mse(y_hatinv, GTG)  # + self.mse(AtrueS, AS)
-        # skew_sym = S.bmm(AS.mT) - AS.bmm(S.mT)
         reg = regul.loss_skew_symmetric(S, AS, 1.0)  # + self.mse(AtrueS, AS)
 
-        loss = mse
+        loss = mse + reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse", mse)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
-
-    def construct_LMP(
-        self, S: torch.Tensor, AS: torch.Tensor, shift: float
-    ) -> torch.Tensor:
-        In = batch_identity_matrix(S.shape[0], self.state_dimension)
-        StASm1 = torch.linalg.inv(torch.bmm(S.mT, AS))
-        left = In - torch.bmm(torch.bmm(S, StASm1), AS.mT)
-        mid = In - torch.bmm(torch.bmm(AS, StASm1), S.mT)
-        right = torch.bmm(torch.bmm(S, StASm1), S.mT)
-        H = torch.bmm(left, mid) + shift * right
-        return H
-
-    def construct_invLMP(
-        self, S: torch.Tensor, AS: torch.Tensor, shift: float
-    ) -> torch.Tensor:
-        In = batch_identity_matrix(S.shape[0], self.state_dimension)
-        StASm1 = torch.linalg.inv(torch.bmm(S.mT, AS))
-        B = (
-            In
-            + (1 / shift) * torch.bmm(torch.bmm(AS, StASm1), AS.mT)
-            - torch.bmm(
-                torch.bmm(S, torch.linalg.inv(torch.bmm(S.mT, S))),
-                S.mT,
-            )
-        )
-        return B
 
 
 class LimitedMemoryPrecRegularized(LimitedMemoryPrec):
@@ -386,7 +376,7 @@ class LimitedMemoryPrecSym(LimitedMemoryPrec):
             return self._common_step_iterable(batch, batch_idx, stage)
 
 
-class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
+class LMPLinOp(LimitedMemoryPrec):
     def __init__(
         self,
         state_dimension: int,
@@ -414,7 +404,7 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
             int(rank * (state_dimension + 0)),  # self.nout
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward_S(self, x: torch.Tensor) -> torch.Tensor:
         S_ = self.layers(x).reshape(len(x), self.state_dimension, self.rank)
         S = torch.linalg.qr(S_)[0]
         return S
@@ -430,7 +420,7 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
     def lowrank_linear_operator(self, x: torch.Tensor) -> torch.Tensor:
         L = self.forward_linop(x)
         LLT = L.bmm(L.mT)
-        return LLT + eye_like(LLT)
+        return LLT + 1e-3 * eye_like(LLT)
 
     def lowrank_linear_operator_eigendec(self, x: torch.Tensor) -> torch.Tensor:
         vili = self.forward_linop(x)
@@ -440,11 +430,11 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
         Atilde = construct_matrix(qi, eli)
         return Atilde
 
-    def forward_AS(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.forward(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        S = self.forward_S(x)
         Atilde = self.lowrank_linear_operator(x)
         # Atilde = self.lowrank_linear_operator_eigendec(x)
-        return S, Atilde.bmm(S)
+        return torch.stack([S, Atilde.bmm(S)], axis=-1)
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
@@ -454,7 +444,9 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
         # Add here the addition
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
-        S, AS = self.forward_AS(x)
+        output = self.forward(x)
+        S, AS = output[..., 0], output[..., 1]
+
         y_hatinv = self.construct_invLMP(S, AS, 1)
         y_hat = self.construct_LMP(S, AS, 1)
 
@@ -496,10 +488,10 @@ class LimitedMemoryPrecLinearOperator(LimitedMemoryPrec):
         return LimitedMemoryPrecVectorNorm._common_step(self, batch, batch_idx, stage)
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
-        if self.datatype == "full":
+        if (self.n_rnd_vectors is not None) and (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors(batch, batch_idx, stage)
+        else:
             return self._common_step_full_norm(batch, batch_idx, stage)
-        elif self.datatype == "iterable":
-            return self._common_step_iterable(batch, batch_idx, stage)
 
 
 class LimitedMemoryPrecVectorNorm(LimitedMemoryPrec):

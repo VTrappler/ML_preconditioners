@@ -12,15 +12,13 @@ from lightning.pytorch.callbacks import RichProgressBar
 from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
 
-# create your own theme!
-
 
 from omegaconf import OmegaConf
 from lightning.pytorch.loggers import CSVLogger
 
 from prec_data.data import TangentLinearDataModule
 from prec_models import construct_model_class
-from prec_models.models_limitedmemoryprec import LimitedMemoryPrecRegularized, LMPPrec
+from prec_models.models_limitedmemoryprec import LimitedMemoryPrecRegularized, LMP, LMPLinOp
 from prec_models.models_spectral import DeflationPrec, SVDConvolutional, SVDPrec
 from prec_models.models_unstructured import LowRank
 
@@ -48,7 +46,8 @@ model_list = [
     SVDConvolutional,
     SVDPrec,
     DeflationPrec,
-    LMPPrec,
+    LMP,
+    LMPLinOp,
     LimitedMemoryPrecRegularized,
     LowRank,
 ]
@@ -102,7 +101,11 @@ def main(config):
         max_epochs=config["optimizer"]["epochs"],
         logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
         callbacks=[progress_bar],
+        enable_checkpointing=False
     )
+
+
+
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)
     )

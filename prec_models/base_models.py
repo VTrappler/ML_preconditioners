@@ -1,20 +1,17 @@
-import os
 import torch
 from torch import nn
 import numpy as np
-from torchvision import transforms
 import lightning.pytorch as pl
 
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import torch.nn.functional as F
-from torchmetrics.functional import r2_score
 import io
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import functools
 
-from typing import List
+from typing import List, Tuple
 
 
 class EnforcePositivity(nn.Module):
@@ -181,7 +178,7 @@ class BaseModel(pl.LightningModule):
         """func (batch) -> torch tensor where batch x, forw, tlm"""
         self._construct_gaussnewtonmatrix = func
 
-    def _common_step(self, batch, batch_idx, stage):
+    def _common_step_full_norm(self, batch, batch_idx, stage):
         x, forw, tlm = batch
         GTG = self._construct_gaussnewtonmatrix(
             self, batch
@@ -213,6 +210,16 @@ class BaseModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self._common_step(batch, batch_idx, "test")
+
+    def _common_step_randomvectors(self, batch: Tuple, batch_idx: int, stage: str):
+        raise NotImplementedError
+
+    def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
+        if (self.n_rnd_vectors is not None) and (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors(batch, batch_idx, stage)
+        else:
+            return self._common_step_full_norm(batch, batch_idx, stage)
+
 
     # def on_after_backward(self):
     #     # self.gradient_histograms_adder()

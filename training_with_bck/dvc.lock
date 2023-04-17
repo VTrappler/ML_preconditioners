@@ -43,14 +43,14 @@ stages:
         optimizer.epochs: 100
     outs:
     - path: artifacts/metrics.yaml
-      md5: 0b6556ea7f224b7df8b214b6f62ce26d
-      size: 211
+      md5: c71eb237d36f68a8bd5ab6036aaf9788
+      size: 220
     - path: artifacts/mlflow_run_id.yaml
-      md5: 319c4e13e6a9a74e4191ee27e73e50e5
+      md5: 9e7764d278be68306e60c1f820d06cd9
       size: 80
     - path: artifacts/training_logs.csv
-      md5: 5fd77f06f080224c54d4b9daadf1cae4
-      size: 132209
+      md5: f55e2ff414d33afa3d4f9c158d8ea3ec
+      size: 147144
   data_assim:
     cmd: source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark.py
       --config config.yaml --run-id-yaml /home/smoke/artifacts/mlflow_run_id.yaml

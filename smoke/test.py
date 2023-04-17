@@ -86,6 +86,15 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
 #     return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
+def construct_svd_ML(loaded_model, x_):
+    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    Ur = bqr(Ur)
+    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+    return Sr.squeeze(), Ur.squeeze()
+
+
 def construct_matrices(x_):
     Sr, Ur = construct_svd_ML(loaded_model, x_)
     Sr_minus_1 = Sr ** (-1) - 1
@@ -102,17 +111,32 @@ def get_approximate_singular_val(x_):
     return sv
 
 
-def construct_svd_ML(loaded_model, x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    Ur = bqr(Ur)
-    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
-    return Sr.squeeze(), Ur.squeeze()
+def check_eigenvectors(
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "check_eigenvectors")
+):
+    plt.figure(figsize=(10, 6))
+    Sr, Ur = construct_svd_ML(loaded_model, x_)
+    for j, idx in enumerate(indices):
+        plt.subplot(2, 5, 1 + j)
+        tl = tlm_[idx, ...]
+        gn = tl.T @ tl
+        U = Ur[idx, ...]
+        S = Sr[idx, ...]
+        plt.imshow(U.T @ gn @ U - np.diag(S))
+        plt.colorbar()
+        plt.title(f"U.T @ A @ U: {idx}")
+        plt.subplot(2, 5, 6 + j)
+        ratio = (gn @ U) / (U * (S[None, :])) - 1
+        plt.plot(ratio)
+        plt.yscale("symlog")
+        plt.title(f"(AU / SU) - 1: {idx}")
+    plt.tight_layout()
+    plt.savefig(figname)
+    plt.close()
 
 
 def gauss_newton_approximation_svd(
-    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximatoin")
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
 ):
     for j, idx in enumerate(indices):
         plt.subplot(3, 5, 1 + j)
@@ -184,9 +208,10 @@ def preconditioned_svd(
 def condition_numbers(
     preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
 ):
-    original_condition_number = np.linalg.cond((bt(tlm_) @ tlm_))
+    gauss_newton_matrices = bt(tlm_) @ tlm_
+    original_condition_number = np.linalg.cond(gauss_newton_matrices)
     sorted_indices = np.argsort(original_condition_number)
-    prec_condition_number = np.linalg.cond((bt(tlm_) @ tlm_ @ preconditioners))
+    prec_condition_number = np.linalg.cond((gauss_newton_matrices @ preconditioners))
     plt.plot(original_condition_number[sorted_indices], ".")
     plt.plot(prec_condition_number[sorted_indices], ".")
     plt.yscale("log")
@@ -264,4 +289,9 @@ if __name__ == "__main__":
         preconditioners,
         indices,
         figname=os.path.join(fig_folder, "sanity_check"),
+    )
+
+    print("check eigenvectors")
+    check_eigenvectors(
+        x_, tlm_, indices, figname=os.path.join(fig_folder, "check_eigenvectors")
     )

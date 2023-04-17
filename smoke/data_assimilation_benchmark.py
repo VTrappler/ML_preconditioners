@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from omegaconf import OmegaConf
+import pandas as pd
 
 plt.style.use("seaborn-v0_8")
 import argparse
 import logging
 import os
 
+import seaborn as sns
 from DA_PoC.common.observation_operator import (
     IdentityObservationOperator,
 )  # RandomObservationOperator,; LinearObervationOperator,
@@ -54,48 +56,29 @@ def construct_matrices(loaded_model, x_):
     return mats, prec
 
 
-def construct_svd_ML(loaded_model, x_, qr=False):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    if qr:
-        Ur = bqr(Ur)
-    # Ur = bqr(vecs)
-    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
-    return Sr.squeeze(), Ur.squeeze()
+def construct_LMP_naive(U, A, shift=1):
+    identity = np.eye(A.shape[0])
+    normalizing_matrix = np.linalg.inv(U.T @ A @ U)
+    AU = A @ U
+    Hk = (identity - U @ normalizing_matrix @ AU.T) @ (
+        identity - AU @ normalizing_matrix @ U.T
+    ) + shift * U @ normalizing_matrix @ U.T
+    return Hk
 
 
-def construct_projector_exact(num_model, x_, rk):
-    GtG = num_model.gauss_newton_hessian_matrix(x_)
-    U, S, _ = np.linalg.svd(GtG)
-    return S[:rk], U[:, :rk]
+def construct_LMP_direct(U, AU):
+    identity = np.eye(U.shape[0])
+    normalizing_matrix = np.linalg.inv(U.T @ AU)
+    Hk = (identity - U @ normalizing_matrix @ AU.T) @ (
+        identity - AU @ normalizing_matrix @ U.T
+    ) + U @ normalizing_matrix @ U.T
+    return Hk
 
 
-def sumLMP_exact(num_model, x_, rk):
-    Sr, Ur = construct_projector_exact(num_model, x_, rk)
-    n = len(x_)
-    acc = np.zeros((n, n))
-    for i in range(rk):
-        acc += (1 - (1 / Sr[i])) * Ur[:, i].reshape(n, 1) @ Ur[:, i].reshape(1, n)
-    return np.eye(n) - acc
-
-
-def sumLMP_ML(loaded_model, x_, qr=True):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    if qr:
-        Ur = bqr(Ur)
-    n = Ur.shape[1]
-    r = Ur.shape[-1]
-    acc = np.zeros((len(pred), n, n))
-    for i in range(r):
-        uu = Ur[..., i].reshape((len(pred), n, 1))
-        uuprime = bmm(uu, bt(uu))
-        acc += ((1 - Sr[:, i] ** (-1))).reshape(len(pred), 1, 1) * uuprime
-    prec = np.eye(n).reshape(1, n, n) - acc
-    mats = bmm(Ur, (Sr[..., None] * bt(Ur)))
-    return mats, prec
+def construct_LMP_ML(loaded_model, x_):
+    prediction = loaded_model.predict(np.asarray(x_).astype("f"))
+    S, AS = prediction[..., 0], prediction[..., 1]
+    return construct_LMP_direct(S.squeeze(), AS.squeeze())
 
 
 plt.set_cmap("magma")
@@ -185,58 +168,86 @@ def main(config, loaded_model=None):
         DA_exp_dict[exp_name] = DA_exp
         return DA_exp
 
-    if loaded_model is not None:
+    # Diagnostic SVD
 
-        def MLpreconditioner_LMP(x):
-            _, prec = sumLMP_ML(loaded_model, x.reshape(1, n), qr=True)
-            return prec.squeeze()
+    # if prec_type == "general":
+    #     b = -self.gradient(x)
+    #     args = {
+    #         "A": GtG,
+    #         "b": b,
+    #         "x": x,
+    #     }
+    #     A_to_inv, b_to_inv = prec(**args)
+    #     return solve_cg(A_to_inv, b_to_inv, maxiter=iter_inner)
 
-        _ = create_DA_experiment(
-            "ML_LMP", prec={"prec_name": MLpreconditioner_LMP, "prec_type": "right"}
-        )
+    def MLpreconditioner_LMP(x):
+        Hk = construct_LMP_ML(loaded_model, x.reshape(1, n))
+        return Hk.squeeze()
 
-        def MLpreconditioner_svd(x, qr=False):
-            return construct_svd_ML(loaded_model, x.reshape(1, n), qr)
-
-        DA_diag = create_DA_experiment(
-            "diagnostic",
-            prec={"prec_name": MLpreconditioner_svd, "prec_type": "svd_diagnostic"},
-        )
-
-    def sumLMP_preconditioner(x):
-        return sumLMP_exact(l_model_randobs, x, config["architecture"]["rank"])
-
-    DA_sumLMP = create_DA_experiment(
-        "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "left"}
+    _ = create_DA_experiment(
+        "ML_LMP", prec={"prec_name": MLpreconditioner_LMP, "prec_type": "left"}
     )
 
-    def deflation_preconditioner(x):
-        return construct_projector_exact(
-            l_model_randobs, x, config["architecture"]["rank"]
-        )
+    def MLpreconditioner_LMP_A(A, b, x):
+        prediction = loaded_model.predict(np.asarray(x).reshape(1, n).astype("f"))
+        S = prediction[..., 0].squeeze()
+        Hk = construct_LMP_direct(S, A @ S)
+        return Hk @ A, Hk @ b
 
-    DA_deflation = create_DA_experiment(
-        "deflation_ML",
-        prec={
-            "prec_name": lambda x: MLpreconditioner_svd(x, qr=True),
-            "prec_type": "deflation",
-        },
+    _ = create_DA_experiment(
+        "ML_naive", prec={"prec_name": MLpreconditioner_LMP_A, "prec_type": "general"}
     )
+
+    # _ = create_DA_experiment(
+    #     "deflation_ML",
+    #     prec={
+    #         "prec_name": lambda x: MLpreconditioner_svd(x, qr=False),
+    #         "prec_type": "deflation",
+    #     },
+    # )
+
     l_model_randobs.r = config["architecture"]["rank"]
-    # DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
+    DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
+
+    # BASELINE --------------------------------------------------------------------
     DA_baseline = create_DA_experiment("baseline", prec=None)
+
+    #
+    #
+    #
+    #
+    # Run experiments
 
     for exp_name, DA_exp in DA_exp_dict.items():
         print(f"\n--- {exp_name} ---\n")
         DA_exp.run()
-
+    dfs = []
     for i, (exp_name, DA_exp) in enumerate(DA_exp_dict.items()):
         DA_exp.plot_residuals_inner_loop(
             f"C{i}", label=DA_exp.exp_name, cumulative=False
         )
+        cond, niter = DA_exp.extract_condition_niter()
+        dfs.append(
+            pd.DataFrame(
+                {"exp_name": DA_exp.exp_name, "condition": cond, "niter": niter}
+            )
+        )
+    dataframe = pd.concat(dfs)
+
     plt.legend()
     plt.ylim([1e-9, 1e2])
     plt.savefig(os.path.join(artifacts_path, "res_inner_loop.png"))
+    plt.close()
+
+    plt.subplot(1, 2, 1)
+    sns.boxplot(dataframe, x="exp_name", y="condition", orient="v")
+    plt.ylabel("Condition")
+    plt.yscale("log")
+    plt.subplot(1, 2, 2)
+    sns.boxplot(dataframe, x="exp_name", y="niter", orient="v")
+    plt.ylabel("# iter")
+    plt.tight_layout()
+    plt.savefig(os.path.join(artifacts_path, "cond_niter_boxplot.png"))
     plt.close()
 
 

@@ -102,6 +102,7 @@ def main(config):
         max_epochs=config["optimizer"]["epochs"],
         logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
         callbacks=[progress_bar],
+        enable_checkpointing=False
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)

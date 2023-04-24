@@ -103,8 +103,9 @@ def main(config):
     model.set_gauss_newton_matrix_from_batch_function(lambda batch: batch[-1])
     trainer = pl.Trainer(
         max_epochs=config["optimizer"]["epochs"],
-        logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
+        logger=[mlf_logger, CSVLogger(logs_path, version="GN_bck")],
         callbacks=[progress_bar],
+        enable_checkpointing=False
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)

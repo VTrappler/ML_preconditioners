@@ -2,7 +2,7 @@ import argparse
 import os
 import pickle
 import sys
-
+import logging
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
@@ -86,6 +86,15 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
 #     return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
+def construct_svd_ML(loaded_model, x_):
+    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    Ur = bqr(Ur)
+    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+    return Sr.squeeze(), Ur.squeeze()
+
+
 def construct_matrices(x_):
     Sr, Ur = construct_svd_ML(loaded_model, x_)
     Sr_minus_1 = Sr ** (-1) - 1
@@ -100,15 +109,6 @@ def get_approximate_singular_val(x_):
     logsvals = pred[:, -1, :]
     sv = np.exp(logsvals)
     return sv
-
-
-def construct_svd_ML(loaded_model, x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    Ur = bqr(Ur)
-    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
-    return Sr.squeeze(), Ur.squeeze()
 
 
 def gauss_newton_approximation_svd(
@@ -169,13 +169,14 @@ def preconditioned_svd(
         plt.imshow(preconditioned_gn)
         plt.subplot(2, 5, 6 + j)
         _, sv, _ = np.linalg.svd(preconditioned_gn)
-        plt.plot(sv, label="p")
+        plt.plot(sv, label="prec")
         _, sv_original, _ = np.linalg.svd(gn)
-        plt.plot(sv_original, label="GN")
+        plt.plot(sv_original, label="original")
         plt.title(
             f"k: {np.linalg.cond(gn):.2e}\nk_p = {np.linalg.cond(preconditioned_gn):.2e}"
         )
         plt.yscale("log")
+        plt.legend()
     plt.tight_layout()
     plt.savefig(figname)
     plt.close()
@@ -208,6 +209,10 @@ def range_singular_values(tlm_):
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.debug("debug")
     parser = argparse.ArgumentParser(description="Use Surrogate in inference")
     parser.add_argument("--run-id", type=str, default="")
     parser.add_argument("--run-id-yaml", type=str, default="")
@@ -227,7 +232,7 @@ if __name__ == "__main__":
     logged_model = f"runs:/{run_id}/smoke_model"
     # mlflow.pyfunc.get_model_dependencies(logged_model)
     loaded_model = mlflow.pyfunc.load_model(logged_model)
-    print(f"{loaded_model=}")
+    logger.info(f"{loaded_model=}")
 
     with open(data_path, "rb") as handle:
         data = pickle.load(handle)
@@ -239,13 +244,14 @@ if __name__ == "__main__":
     tlm_ = np.asarray(tlm_)
     # plt.figure(figsize=(12, 6))
     indices = np.random.randint(0, len(x_), size=5)
+    indices = [0, 1, 2, 3, 4]
 
     range_singular_values(tlm_)
-    print("svd approximation")
+    logger.info("svd approximation")
     gauss_newton_approximation_svd(
         x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
     )
-    print("preconditioning")
+    logger.info("preconditioning")
     preconditioned_svd(
         preconditioners,
         tlm_,
@@ -253,12 +259,12 @@ if __name__ == "__main__":
         figname=os.path.join(fig_folder, "preconditioning"),
     )
 
-    print("condition numbers")
+    logger.info("condition numbers")
     condition_numbers(
         preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
     )
 
-    print("sanity check")
+    logger.info("sanity check")
     sanity_check(
         approximations,
         preconditioners,

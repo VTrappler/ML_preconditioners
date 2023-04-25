@@ -88,13 +88,13 @@ class SVDPrec(BaseModel):
 
         ## Construction of the MLP
         ### Construction of the input layer
-
-        self.layers = construct_MLP(
-            self.state_dimension,
-            self.n_layers,
-            self.neurons_per_layer,
-            self.n_out,
-        )
+        if self.neurons_per_layer != 0:  # in case of no op warning
+            self.layers = construct_MLP(
+                self.state_dimension,
+                self.n_layers,
+                self.neurons_per_layer,
+                self.n_out,
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         S = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)

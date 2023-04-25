@@ -65,8 +65,8 @@ stages:
       md5: 29626841443d0c996a9b9bee6a288cda
       size: 398
     - path: data_assimilation_benchmark.py
-      md5: 972075993dc425a86b4bde6c090e24cb
-      size: 8412
+      md5: 5db60058d46f9c674086c7acc850ee0c
+      size: 8944
     params:
       config.yaml:
         DA.n_cycle: 5
@@ -75,11 +75,11 @@ stages:
         model.window: 10
     outs:
     - path: artifacts/DA_logs.csv
-      md5: b5fa164976084954eeb737bcecadecf4
-      size: 24519
+      md5: caa9eb2116a7886721b9fb7edd9f599d
+      size: 24408
     - path: artifacts/res_inner_loop.png
-      md5: 244b2d91fb735bfb5783b11bb34b9d49
-      size: 354263
+      md5: 67380a1c813de181b242dcc7a8ac7f34
+      size: 352145
   test:
     cmd: source /home/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
       /home/smoke/artifacts/mlflow_run_id.yaml

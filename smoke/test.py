@@ -80,35 +80,35 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
     return B
 
 
-# def construct_matrices(x_):
-#     outputs = loaded_model.predict(np.asarray(x_).astype("f"))
-#     S, AS = outputs[..., 0], outputs[..., 1]
-#     return construct_invLMP(S, AS), construct_LMP(S, AS)
-
-
-def construct_svd_ML(loaded_model, x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    Ur = bqr(Ur)
-    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
-    return Sr.squeeze(), Ur.squeeze()
-
-
 def construct_matrices(x_):
-    Sr, Ur = construct_svd_ML(loaded_model, x_)
-    Sr_minus_1 = Sr ** (-1) - 1
-    # H = construct_matrix_USUt(qi, eli)
-    lr_approximation = bmm(Ur, (Sr[..., None] * bt(Ur)))
-    prec = bmm(Ur, (Sr_minus_1[..., None] * bt(Ur))) + np.eye(Ur.shape[1])
-    return lr_approximation, prec
+    outputs = loaded_model.predict(np.asarray(x_).astype("f"))
+    S, AS = outputs[..., 0], outputs[..., 1]
+    return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
-def get_approximate_singular_val(x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    logsvals = pred[:, -1, :]
-    sv = np.exp(logsvals)
-    return sv
+# def construct_svd_ML(loaded_model, x_):
+#     pred = loaded_model.predict(np.asarray(x_).astype("f"))
+#     Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+#     Sr = np.exp(logsvals)
+#     Ur = bqr(Ur)
+#     # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+#     return Sr.squeeze(), Ur.squeeze()
+
+
+# def construct_matrices(x_):
+#     Sr, Ur = construct_svd_ML(loaded_model, x_)
+#     Sr_minus_1 = Sr ** (-1) - 1
+#     # H = construct_matrix_USUt(qi, eli)
+#     lr_approximation = bmm(Ur, (Sr[..., None] * bt(Ur)))
+#     prec = bmm(Ur, (Sr_minus_1[..., None] * bt(Ur))) + np.eye(Ur.shape[1])
+#     return lr_approximation, prec
+
+
+# def get_approximate_singular_val(x_):
+#     pred = loaded_model.predict(np.asarray(x_).astype("f"))
+#     logsvals = pred[:, -1, :]
+#     sv = np.exp(logsvals)
+#     return sv
 
 
 def check_eigenvectors(
@@ -266,10 +266,10 @@ if __name__ == "__main__":
     indices = np.random.randint(0, len(x_), size=5)
 
     range_singular_values(tlm_)
-    print("svd approximation")
-    gauss_newton_approximation_svd(
-        x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
-    )
+    # print("svd approximation")
+    # gauss_newton_approximation_svd(
+    #     x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
+    # )
     print("preconditioning")
     preconditioned_svd(
         preconditioners,
@@ -291,7 +291,7 @@ if __name__ == "__main__":
         figname=os.path.join(fig_folder, "sanity_check"),
     )
 
-    print("check eigenvectors")
-    check_eigenvectors(
-        x_, tlm_, indices, figname=os.path.join(fig_folder, "check_eigenvectors")
-    )
+    # print("check eigenvectors")
+    # check_eigenvectors(
+    #     x_, tlm_, indices, figname=os.path.join(fig_folder, "check_eigenvectors")
+    # )

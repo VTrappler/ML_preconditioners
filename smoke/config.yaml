@@ -5,15 +5,15 @@ data:
   data_path: /root/raw_data/data_100.pkl
   nsamples: 5000
 architecture:
-  class: SVDConvolutional
+  class: LMPLinOp
   rank: 25
   n_layers: 6
-  neurons_per_layer: 0
-  batch_size: 4
-  lr: 1e-4
-  n_rnd_vectors: 20
+  neurons_per_layer: 256
+  batch_size: 8
+  lr: 1e-3
+  n_rnd_vectors: 100
 optimizer:
-  epochs: 400
+  epochs: 50
 DA:
   n_cycle: 5
   n_outer: 5

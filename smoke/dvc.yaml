@@ -67,7 +67,7 @@ stages:
           - data.data_path
     plots:
       - ${artifacts_path}/condition_numbers.png
-      - ${artifacts_path}/svd_approximation.png
+      # - ${artifacts_path}/svd_approximation.png
       - ${artifacts_path}/preconditioning.png
       - ${artifacts_path}/sanity_check.png
 
@@ -100,7 +100,7 @@ plots:
       y: Loss/train_loss
   - ${artifacts_path}/res_inner_loop.png
   - ${artifacts_path}/condition_numbers.png
-  - ${artifacts_path}/svd_approximation.png
+  # - ${artifacts_path}/svd_approximation.png
   - ${artifacts_path}/preconditioning.png
   # - DA_logs.csv:
   #     template: scatter_log.json

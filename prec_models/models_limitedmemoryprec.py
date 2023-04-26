@@ -484,6 +484,59 @@ class LMPLinOp(LimitedMemoryPrec):
         # self.log(f"Loss/{stage}_regul", reg)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
 
+    def _common_step_randomvectors(
+        self, batch: Tuple, batch_idx: int, stage: str
+    ) -> dict:
+        x, forw, tlm = batch
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
+        # Add here the addition
+        ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
+        z_random = torch.randn(size=(len(x), self.state_dimension, self.n_rnd_vectors))
+        x = x.view(x.size(0), -1)
+        output = self.forward(x)
+        S, AS = output[..., 0], output[..., 1]
+
+        H_inv = self.construct_invLMP(S, AS, 1)
+        H = self.construct_LMP(S, AS, 1)
+        H_Z = H @ z_random
+        H_inv_Z = H_inv @ z_random
+        GTG_Z = GTG @ z_random
+        identity = (
+            torch.eye(self.state_dimension)
+            .reshape(-1, self.state_dimension, self.state_dimension)
+            .repeat(len(x), 1, 1)
+        )
+        regul = Regularization(self, stage)
+
+        product_left = torch.bmm(H, GTG)  # LL^T @ G^T G
+        product_right = torch.bmm(GTG, H)  # LL^T @ G^T G
+        product_AHA = torch.bmm(product_right, GTG)  #
+
+        # gram_matrix = torch.bmm(S.mT, S)
+        # skew_sym = Hinv.mT - y_hatinv
+
+        # lr_lin_op = self.lowrank_linear_operator(x)
+        # skew_sym = S.bmm(AS.mT) - AS.bmm(S.mT)
+        # loss = self.loss(y_hat, product, self.identity)
+        # mse = self.mse(y_hatinv, GTG)
+        mse_inv = self.mse(H_inv_Z, GTG_Z)
+        mse_prod = self.mse(product_right @ z_random, identity @ z_random)
+        mse_AHA = self.mse(product_AHA @ z_random, GTG_Z)
+        # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
+        # reg_lr_GtG = self.mse(lr_lin_op, GTG)
+        reg = regul.loss_conjugacy_matrix(S, AS, 100)
+        loss = mse_prod  # +  mse_inv +reg  # + reg_lr_GtG
+        self.log(f"Loss/{stage}_loss", loss)
+        self.log(f"Loss/{stage}_mse_prod", mse_prod)
+        self.log(f"Loss/{stage}_mse_inv", mse_inv)
+        self.log(f"Loss/{stage}_mse_AHA", mse_AHA)
+
+        # self.log(f"Loss/{stage}_reg_lr_gtg", reg_lr_GtG)
+        # self.log(f"Loss/{stage}_regul", reg)
+        return {"loss": loss, "gtg": GTG.detach(), "y_hat": H_inv.detach()}
+
     def _common_step_iterable(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         return LimitedMemoryPrecVectorNorm._common_step(self, batch, batch_idx, stage)
 

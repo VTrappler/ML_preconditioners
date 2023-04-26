@@ -154,7 +154,8 @@ def main(config, loaded_model=None):
             bounds=None,
             numerical_model=l_model_randobs,
             observation_operator=identity_obs_operator,
-            x0_t=np.random.normal(size=n),
+            x0_run=x0_t,
+            x0_analysis=x0_t,
             get_next_observations=get_next_obs,
             n_cycle=n_cycle,
             n_outer=n_outer,
@@ -162,6 +163,7 @@ def main(config, loaded_model=None):
             prec=prec,
             plot=False,
             log_append=True,
+            save_all=True,
         )
         DA_exp.GNlog_file = log_file
         DA_exp.exp_name = exp_name

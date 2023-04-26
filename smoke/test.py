@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 
+plt.style.use("seaborn-v0_8")
 sys.path.append("/home/")
 fig_folder = os.path.join(os.sep, "home", "smoke", "artifacts")
 import tqdm

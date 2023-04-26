@@ -181,6 +181,7 @@ def main(config, loaded_model=None):
             prec=prec,
             plot=False,
             log_append=True,
+            save_all=True,
         )
         DA_exp.GNlog_file = log_file
         DA_exp.exp_name = exp_name
@@ -222,20 +223,21 @@ def main(config, loaded_model=None):
         "naiveML_LMP", prec={"prec_type": "general", "prec_name": prec_naive_ML_LMP}
     )
 
-    for regul in [0.0, 1.0, 2.0, 10.0, 100.0, 500.0]:
-        _ = create_DA_experiment(
-            f"regul_{int(regul)}",
-            prec={
-                "prec_name": regularized_balance(regul),
-                "prec_type": "left",
-            },
-        )
+    # for regul in [0.0, 1.0, 2.0, 10.0]:
+    _ = create_DA_experiment(
+        # f"regul_{int(regul)}",
+        f"ML",
+        prec={
+            "prec_name": regularized_balance(0),
+            "prec_type": "right",
+        },
+    )
 
     def sumLMP_preconditioner(x):
         return sumLMP_exact(l_model_randobs, x, config["architecture"]["rank"])
 
     DA_sumLMP = create_DA_experiment(
-        "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "left"}
+        "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "right"}
     )
     l_model_randobs.r = config["architecture"]["rank"]
     # DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
@@ -260,10 +262,12 @@ def main(config, loaded_model=None):
 
     df = pd.concat(df_list)
     plt.subplot(1, 2, 1)
-    sns.boxplot(df, x="name", y="cond", orient="v")
+    ax = sns.boxplot(df, x="name", y="cond", orient="v")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
     plt.ylabel("Condition")
     plt.subplot(1, 2, 2)
-    sns.boxplot(df, x="name", y="niter", orient="v")
+    ax = sns.boxplot(df, x="name", y="niter", orient="v")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
     plt.ylabel("# iter")
     plt.tight_layout()
     plt.savefig(os.path.join(artifacts_path, "cond_niter_boxplot.png"))

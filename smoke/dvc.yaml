@@ -91,6 +91,7 @@ stages:
     outs:
       - ${artifacts_path}/DA_logs.csv
       - ${artifacts_path}/res_inner_loop.png
+      - ${artifacts_path}/cond_niter_boxplot.png
     # plots:
 
 plots:
@@ -102,6 +103,8 @@ plots:
   - ${artifacts_path}/condition_numbers.png
   - ${artifacts_path}/svd_approximation.png
   - ${artifacts_path}/preconditioning.png
+  - ${artifacts_path}/cond_niter_boxplot.png
+
   # - DA_logs.csv:
   #     template: scatter_log.json
   #     x: nouter

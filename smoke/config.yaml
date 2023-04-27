@@ -13,7 +13,7 @@ architecture:
   lr: 1e-3
   n_rnd_vectors: 100
 optimizer:
-  epochs: 50
+  epochs: 200
 DA:
   n_cycle: 5
   n_outer: 5

@@ -527,7 +527,7 @@ class LMPLinOp(LimitedMemoryPrec):
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
         # reg_lr_GtG = self.mse(lr_lin_op, GTG)
         reg = regul.loss_conjugacy_matrix(S, AS, 100)
-        loss = mse_prod  # +  mse_inv +reg  # + reg_lr_GtG
+        loss = mse_prod + mse_inv + reg  # + reg_lr_GtG
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_mse_prod", mse_prod)
         self.log(f"Loss/{stage}_mse_inv", mse_inv)

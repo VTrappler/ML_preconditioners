@@ -3,7 +3,8 @@ model:
   window: 10
 data:
   data_path: /root/raw_data/data_100.pkl
-  nsamples: 5000
+  data_folder: /root/raw_data/data_100
+  nsamples: 20000
 architecture:
   class: SVDConvolutional
   rank: 50

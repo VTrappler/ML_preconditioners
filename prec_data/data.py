@@ -5,6 +5,7 @@ import lightning.pytorch as pl
 import torch
 import pickle
 import sys
+import os
 from prec_data.background_error import BackgroundError, BackgroundErrorArray
 from prec_data.observation_error import ObservationError, ObservationErrorArray
 
@@ -44,6 +45,33 @@ class TangentLinearDataset(Dataset):
         # Srm1[S >= 1e-9] = (S[S >= 1e-9]**-1)
         # SV = Srm1 * VT.T
         return torch.Tensor(x), torch.Tensor(forward), torch.Tensor(tlm / self.norm_cst)
+
+
+class TangentLinearDatasetMMAP(Dataset):
+    def __init__(
+        self, x_mmap: str, tlm_mmap: str, nsamples: int, dim: int, window: int
+    ):
+        self.nsamples = nsamples
+        self.states = np.memmap(
+            x_mmap,
+            dtype="float32",
+            mode="r",
+            shape=(nsamples, dim),
+        )
+        self.tangent_linear = np.memmap(
+            tlm_mmap,
+            dtype="float32",
+            mode="r",
+            shape=(nsamples, dim * window, dim),
+        )
+
+    def __len__(self):
+        return self.nsamples
+
+    def __getitem__(self, idx):
+        x = self.states[idx, ...]
+        tlm = self.tangent_linear[idx, ...]
+        return torch.Tensor(x), torch.Tensor(tlm)
 
 
 class GaussNewtonDataset(Dataset):
@@ -169,6 +197,51 @@ class TangentLinearDataModule(pl.LightningDataModule):
         return DataLoader(
             self.test, batch_size=self.batch_size, num_workers=self.num_workers
         )
+
+
+class TangentLinearDataModuleMEMMAP(TangentLinearDataModule):
+    def __init__(
+        self,
+        path: str,
+        nsamples: int,
+        dim: int,
+        window: int,
+        batch_size: int,
+        num_workers: int,
+        splitting_lengths: list,
+        shuffling: bool,
+        normalization: bool = False,
+    ):
+        super().__init__(
+            path, batch_size, num_workers, splitting_lengths, shuffling, normalization
+        )
+        self.nsamples = nsamples
+        self.dim = dim
+        self.window = window
+        ls = os.listdir(path)
+        if ("x.memmap" not in ls) or ("tlm.memmap" not in ls):
+            raise RuntimeError(f"No memmap file located in given path: {path}: {ls}")
+
+    def setup(self, stage):
+        x_mmap = os.path.join(self.path, "x.memmap")
+        tlm_mmap = os.path.join(self.path, "tlm.memmap")
+        tangentlinear_dataset = TangentLinearDatasetMMAP(
+            x_mmap,
+            tlm_mmap,
+            nsamples=self.nsamples,
+            dim=self.dim,
+            window=self.window,
+            normalization=self.normalization,
+        )
+        if self.fractional:
+            splitting_lengths = [int(self.nsamples * n) for n in self.splitting_lengths]
+        else:
+            splitting_lengths = self.splitting_lengths
+
+        self.train, self.val, self.test = torch.utils.data.random_split(
+            tangentlinear_dataset, splitting_lengths
+        )
+        self.norm_cst = tangentlinear_dataset.norm_cst
 
 
 class GaussNewtonDataModule(pl.LightningDataModule):

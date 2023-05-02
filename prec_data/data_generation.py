@@ -2,6 +2,7 @@ from DA_PoC.dynamical_systems.lorenz_numerical_model import LorenzWrapper
 
 # from optimization import low_rank_approx
 import argparse
+import os
 import pickle
 import numpy as np
 from omegaconf import OmegaConf
@@ -9,47 +10,12 @@ from tqdm.rich import tqdm, TqdmExperimentalWarning, trange
 import warnings
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
-# def generate_training_pair(x):
-#     forw, G = forward_TLM(x, return_base=True)
-#     # G, grtlm = grad_TLM(x)
-#     Ur, Sr, VrT = low_rank_approx(G, state_dimension)
-#     return (forw, Sr), (Ur, Sr, VrT)
 
 
 def generate_new_state(lorenz, x):
     return lorenz.lorenz_model.integrate(0, x, lorenz.period_assim)[1][
         :, -1
     ] + 0.5 * np.random.normal(size=len(x))
-
-
-# def generate_training(x0=initial_state, Nobs=100):
-#     obs = []
-#     x = x0
-#     for i in tqdm.trange(Nobs):
-#         obs.append(generate_training_pair(x)[0])
-#         x = generate_new_state(x)
-#     return obs
-
-
-# def generate_training_pair_VS(x):
-#     Geval, G = forward_TLM(x, return_base=True)
-#     # G, grtlm = grad_TLM(x)
-#     Ur, Sr, VrT = low_rank_approx(G, state_dimension)
-#     Srm1 = np.zeros_like(Sr)
-#     Srm1[Sr >= 1e-9] = (Sr[Sr >= 1e-9]**-1)
-#     return (Geval, Srm1 * VrT.T)
-
-# def generate_training_pair_VS_G(x):
-#     forw, G = forward_TLM(x, return_base=True)
-#     # G, grtlm = grad_TLM(x)
-#     Ur, Sr, VrT = low_rank_approx(G, state_dimension)
-#     Srm1 = np.zeros_like(Sr)
-#     Srm1[Sr >= 1e-9] = (Sr[Sr >= 1e-9]**-1)
-#     return (forw, G, Srm1 * VrT.T, (Ur, Sr, VrT))
-
-
-def generate_training_pair(lorenz, x):
-    return lorenz.forward_TLM(x, return_base=True)
 
 
 def generate_training_pair_x(lorenz, x):
@@ -60,24 +26,35 @@ def generate_training_pair_x(lorenz, x):
     return x, forw, tlm
 
 
-def generate_training(lorenz, x0=None, Nobs=100):
-    if x0 is None:
-        x0 = lorenz.initial_state
-    train = []
-    x = x0
-    for i in trange(Nobs):
-        train.append(generate_training_pair(lorenz, x))
-        x = generate_new_state(x)
-    return train
-
-
 def generate_training_x(lorenz, x0=None, Nobs=100):
     if x0 is None:
         x0 = lorenz.initial_state
     train = []
     x = x0
     for i in trange(Nobs):
-        train.append(generate_training_pair_x(lorenz, x))
+        x, forw, tlm = generate_training_pair_x(lorenz, x)
+        x = generate_new_state(lorenz, x)
+    return train
+
+
+def generate_and_save_training_memmap(
+    lorenz,
+    x_memmap,
+    tlm_memmap,
+    x0=None,
+    Nobs=100,
+):
+    if x0 is None:
+        x0 = lorenz.initial_state
+    train = []
+    x = x0
+    flush_every = 100
+    for i in trange(Nobs):
+        x, forw, tlm = generate_training_pair_x(lorenz, x)
+        x_memmap[i, ...] = x
+        tlm_memmap[i, ...] = tlm
+        x_memmap.flush()
+        tlm_memmap.flush()
         x = generate_new_state(lorenz, x)
     return train
 
@@ -112,10 +89,11 @@ if __name__ == "__main__":
         dim = conf["model"]["dimension"]
         window = conf["model"]["window"]
         nsamples = conf["data"]["nsamples"]
-        if "data_path" in conf["data"].keys():
-            target = conf["data"]["data_path"]
-        else:
-            target = f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
+
+        target = conf["data"].get(
+            "data_path", f"raw_data/{dim}_{window}obs_{nsamples}.pkl"
+        )  # if has key else default
+        mmap_folder = conf["data"].get("data_folder", None)  # if has key else default
 
     else:
         nsamples = args.N
@@ -131,8 +109,20 @@ if __name__ == "__main__":
 
     lorenz.generate_obs(n_total_obs=window, H=lambda x: x)
 
-    # if args.dummy:
-    #     training_data = generate_training_dummy(Nobs=nsamples)
-    # else:
-    training_data = generate_training_x(lorenz, Nobs=nsamples)
+    x_memmap = np.memmap(
+        os.path.join(mmap_folder, "x.memmap"),
+        dtype="float32",
+        mode="w+",
+        shape=(nsamples, dim),
+    )
+    tlm_memmap = np.memmap(
+        os.path.join(mmap_folder, "tlm.memmap"),
+        dtype="float32",
+        mode="w+",
+        shape=(nsamples, dim * window, dim),
+    )
+
+    training_data = generate_and_save_training_memmap(
+        lorenz, x_memmap, tlm_memmap, Nobs=nsamples
+    )
     save_data(training_data, target)

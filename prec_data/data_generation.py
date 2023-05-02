@@ -53,8 +53,9 @@ def generate_and_save_training_memmap(
         x, forw, tlm = generate_training_pair_x(lorenz, x)
         x_memmap[i, ...] = x
         tlm_memmap[i, ...] = tlm
-        x_memmap.flush()
-        tlm_memmap.flush()
+        if i % flush_every == 0:
+            x_memmap.flush()
+            tlm_memmap.flush()
         x = generate_new_state(lorenz, x)
     return train
 

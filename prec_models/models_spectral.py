@@ -66,6 +66,20 @@ def construct_matrix_USUt(orth_S, diag):
     return orth_S.bmm(diag.view(batch_size, rk, 1) * orth_S.mT)
 
 
+def low_rank_construction(Ur, Sr):
+    return Ur.bmm(Sr[:, :, None] * Ur.mT)
+
+
+def power_singular_value_reconstruction(Ur, Sr, alpha):
+    batch_size, state_dimension, rk = Ur.shape
+    identity = (
+        torch.eye(state_dimension)
+        .view(1, state_dimension, state_dimension)
+        .expand(batch_size, -1, -1)
+    )
+    return identity + low_rank_construction(Ur, Sr ** (alpha) - 1)
+
+
 class SVDPrec(BaseModel):
     def __init__(
         self,
@@ -101,15 +115,15 @@ class SVDPrec(BaseModel):
         return S
 
     def construct_approx(self, x: torch.Tensor) -> torch.Tensor:
-        S = self.layers(x).reshape(
+        nn_output = self.layers(x).reshape(
             len(x), self.state_dimension + 1, self.rank
         )  # Batch_dimension x (state dimension + 1) x rank
-        vi, li = S[:, :-1, :], S[:, -1, :]
-        eli = torch.exp(li)
+        vi, log_li = nn_output[:, :-1, :], nn_output[:, -1, :]
+        eli = torch.exp(log_li)
         qi = torch.linalg.qr(vi)[0]
         # vi = torch.nn.functional.normalize(vi, dim=1)
-
-        H = construct_matrix_USUt(qi, eli)
+        # H = construct_matrix_USUt(qi, eli)
+        H = power_singular_value_reconstruction(qi, eli, alpha=1)
         return H
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:

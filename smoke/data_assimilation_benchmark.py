@@ -223,24 +223,24 @@ def main(config, loaded_model=None):
         "naiveML_LMP", prec={"prec_type": "general", "prec_name": prec_naive_ML_LMP}
     )
 
-    # for regul in [0.0, 1.0, 2.0, 10.0]:
-    _ = create_DA_experiment(
-        # f"regul_{int(regul)}",
-        f"ML",
-        prec={
-            "prec_name": regularized_balance(0),
-            "prec_type": "right",
-        },
-    )
+    for regul in [0.0, 1.0, 2.0, 10.0]:
+        _ = create_DA_experiment(
+            f"regul_{int(regul)}",
+            # f"ML",
+            prec={
+                "prec_name": regularized_balance(regul),
+                "prec_type": "right",
+            },
+        )
 
-    def sumLMP_preconditioner(x):
-        return sumLMP_exact(l_model_randobs, x, config["architecture"]["rank"])
+    # def sumLMP_preconditioner(x):
+    #     return sumLMP_exact(l_model_randobs, x, config["architecture"]["rank"])
 
-    DA_sumLMP = create_DA_experiment(
-        "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "right"}
-    )
+    # DA_sumLMP = create_DA_experiment(
+    #     "sumLMP", {"prec_name": sumLMP_preconditioner, "prec_type": "right"}
+    # )
     l_model_randobs.r = config["architecture"]["rank"]
-    # DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
+    DA_spectralLMP = create_DA_experiment("spectralLMP", prec="spectralLMP")
     DA_baseline = create_DA_experiment("baseline", prec=None)
 
     df_list = []

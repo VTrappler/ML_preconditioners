@@ -8,5 +8,3 @@ vars:
 stages:
   smoke_hpo:
     cmd: source ../.set_environment_variables.sh && python3.10 hpo.py --config hpo_config.yaml
-    deps:
-      - /root/raw_data/data.pkl

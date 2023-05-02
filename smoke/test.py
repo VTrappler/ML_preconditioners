@@ -6,8 +6,11 @@ import logging
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
+import seaborn as sns
+import pandas as pd
 
 plt.style.use("seaborn-v0_8")
+plt.set_cmap("magma")
 sys.path.append("/home/")
 fig_folder = os.path.join(os.sep, "home", "smoke", "artifacts")
 import tqdm
@@ -113,7 +116,7 @@ def get_approximate_singular_val(x_):
 
 
 def gauss_newton_approximation_svd(
-    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximatoin")
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
 ):
     for j, idx in enumerate(indices):
         plt.subplot(3, 5, 1 + j)
@@ -159,6 +162,7 @@ def preconditioned_svd(
     preconditioners,
     tlm_,
     indices,
+    rank,
     figname=os.path.join(fig_folder, "preconditioning"),
 ):
     plt.figure(figsize=(10, 6))
@@ -170,7 +174,7 @@ def preconditioned_svd(
         plt.imshow(preconditioned_gn)
         plt.subplot(2, 5, 6 + j)
         _, sv, _ = np.linalg.svd(preconditioned_gn)
-        plt.plot(sv, label="prec")
+        plt.plot(np.roll(sv, rank), label="prec")
         _, sv_original, _ = np.linalg.svd(gn)
         plt.plot(sv_original, label="original")
         plt.title(
@@ -188,10 +192,30 @@ def condition_numbers(
 ):
     original_condition_number = np.linalg.cond((bt(tlm_) @ tlm_))
     sorted_indices = np.argsort(original_condition_number)
-    prec_condition_number = np.linalg.cond((bt(tlm_) @ tlm_ @ preconditioners))
+    prec_condition_number = np.linalg.cond(preconditioners @ (bt(tlm_) @ tlm_))
+    df = pd.concat(
+        [
+            pd.DataFrame(
+                {
+                    "condition": original_condition_number,
+                    "matrix": "baseline",
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "condition": prec_condition_number,
+                    "matrix": "preconditioned",
+                }
+            ),
+        ]
+    )
+    plt.subplot(2, 1, 1)
     plt.plot(original_condition_number[sorted_indices], ".")
     plt.plot(prec_condition_number[sorted_indices], ".")
     plt.yscale("log")
+    plt.subplot(2, 1, 2)
+    sns.boxplot(df, y="matrix", x="condition")
+    plt.xscale("log")
     plt.savefig(figname)
     plt.close()
 
@@ -230,6 +254,13 @@ if __name__ == "__main__":
             run_id = run_id_yaml["run_id"]
             data_path = run_id_yaml["data_path"]
 
+    try:
+        with open("config.yaml", "r") as fstream:
+            conf = yaml.safe_load(fstream)
+            rank = conf["architecture"]["rank"]
+    except:
+        rank = 0
+
     logged_model = f"runs:/{run_id}/smoke_model"
     # mlflow.pyfunc.get_model_dependencies(logged_model)
     loaded_model = mlflow.pyfunc.load_model(logged_model)
@@ -245,7 +276,7 @@ if __name__ == "__main__":
     tlm_ = np.asarray(tlm_)
     # plt.figure(figsize=(12, 6))
     indices = np.random.randint(0, len(x_), size=5)
-    indices = [0, 1, 2, 3, 4]
+    # indices = [0, 1, 2, 3, 4]
 
     range_singular_values(tlm_)
     logger.info("svd approximation")
@@ -257,6 +288,7 @@ if __name__ == "__main__":
         preconditioners,
         tlm_,
         indices,
+        rank,
         figname=os.path.join(fig_folder, "preconditioning"),
     )
 

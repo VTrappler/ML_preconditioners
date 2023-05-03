@@ -14,8 +14,8 @@ stages:
         model.window: 10
     outs:
     - path: /root/raw_data/data_100.pkl
-      md5: 19e71509c18e86099b17705ff10eaeee
-      size: 4048570129
+      md5: 57dcc90d201e5f5e1c028afd6be43e5e
+      size: 5
   train:
     cmd: source /home/.set_environment_variables.sh && python3.10 /home/smoke/training.py
       --config config.yaml --exp-name smoke_train_tr

@@ -1,0 +1,4 @@
+outs:
+- md5: b55a5e60e13443c9a9120e629486ff02
+  size: 4611
+  path: training_base.py

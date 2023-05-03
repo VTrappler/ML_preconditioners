@@ -1,0 +1,4 @@
+outs:
+- md5: c8e867099b0f062a08b49bb08c9c13db
+  size: 2312
+  path: data_memmap.py

@@ -18,7 +18,7 @@ from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTh
 from omegaconf import OmegaConf
 from lightning.pytorch.loggers import CSVLogger
 
-from prec_data.data_memmap import TangentLinearDataModuleMEMMAP
+from prec_data.data import TangentLinearDataModule
 from prec_models import construct_model_class
 from prec_models.models_limitedmemoryprec import LimitedMemoryPrecRegularized, LMPPrec
 from prec_models.models_spectral import DeflationPrec, SVDConvolutional, SVDPrec
@@ -82,18 +82,16 @@ def main(config):
     )
     model = torch_model(state_dimension=state_dimension, config=config["architecture"])
 
+    mlflow.log_params(config["architecture"])
+    mlflow.log_params(config["data"])
     config["optimizer"].pop("lr", None)
-    mlflow.log_params(config)
-
+    mlflow.log_params(config["optimizer"])
     with open(os.path.join(artifacts_path, "mlflow_run_id.yaml"), "w") as fh:
         run_id_dict = {"run_id": run.info.run_id, "data_path": data_path}
         OmegaConf.save(config=run_id_dict, f=fh)
 
-    datamodule = TangentLinearDataModuleMEMMAP(
-        path=config["data"]["data_folder"],
-        nsamples=config["data"]["nsamples"],
-        dim=state_dimension,
-        window=config["model"]["window"],
+    datamodule = TangentLinearDataModule(
+        path=data_path,
         batch_size=config["architecture"]["batch_size"],
         num_workers=4,
         splitting_lengths=[0.8, 0.1, 0.1],
@@ -104,7 +102,7 @@ def main(config):
         max_epochs=config["optimizer"]["epochs"],
         logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
         callbacks=[progress_bar],
-        enable_checkpointing=False,
+        enable_checkpointing=False
     )
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)

@@ -4,114 +4,120 @@ stages:
     cmd: python3.10 /home/prec_data/data_generation.py --config /home/smoke/config.yaml
     deps:
     - path: ../prec_data/data_generation.py
-      md5: 41700b7d159c86ca16b0d9d547455548
-      size: 4162
+      md5: da8a2b9ec578b42827bf53b02610227e
+      size: 3647
     params:
       config.yaml:
-        data.data_path: /root/raw_data/data_100.pkl
-        data.nsamples: 5000
-        model.dimension: 100
+        data.data_folder: /root/raw_data/data_40_large
+        data.nsamples: 50000
+        model.dimension: 40
         model.window: 10
     outs:
-    - path: /root/raw_data/data_100.pkl
-      md5: 57dcc90d201e5f5e1c028afd6be43e5e
-      size: 5
+    - path: /root/raw_data/data_40_large/tlm.memmap
+      md5: 6cea3c3e1972b9be048014b6f8e264c5
+      size: 3200000000
+    - path: /root/raw_data/data_40_large/x.memmap
+      md5: 62f11c64556e226c7c51f1e7259a8040
+      size: 8000000
   train:
     cmd: source /home/.set_environment_variables.sh && python3.10 /home/smoke/training.py
       --config config.yaml --exp-name smoke_train_tr
     deps:
     - path: ../prec_data/data.py
-      md5: dd5a7a9c868d112232ea829e845b389c
-      size: 17066
-    - path: /root/raw_data/data_100.pkl
-      md5: 19e71509c18e86099b17705ff10eaeee
-      size: 4048570129
+      md5: 5a4f754e59a2202ad6284151222ab4ee
+      size: 13442
+    - path: /root/raw_data/data_40_large/tlm.memmap
+      md5: 6cea3c3e1972b9be048014b6f8e264c5
+      size: 3200000000
+    - path: /root/raw_data/data_40_large/x.memmap
+      md5: 62f11c64556e226c7c51f1e7259a8040
+      size: 8000000
     - path: config.yaml
-      md5: 243628042b70ec34d277c9fed7c83a24
-      size: 399
+      md5: 2af0cc6bd74de6430043e061a66cd806
+      size: 503
     - path: training.py
-      md5: b55a5e60e13443c9a9120e629486ff02
-      size: 4611
+      md5: e77f8d740465e0934333de203f7f376e
+      size: 5337
     params:
       config.yaml:
         architecture.batch_size: 8
-        architecture.class: SVDConvolutional
-        architecture.n_layers: 6
-        architecture.rank: 50
-        data.data_path: /root/raw_data/data_100.pkl
-        model.dimension: 100
-        optimizer.epochs: 100
+        architecture.class: SVDConvolutionalSPAI
+        architecture.n_layers: 8
+        architecture.rank: 40
+        data.data_folder: /root/raw_data/data_40_large
+        model.dimension: 40
+        optimizer.epochs: 25
     outs:
     - path: artifacts/metrics.yaml
-      md5: c9cb594a7dd35b62b34b0763bafca26c
-      size: 225
+      md5: 0d1d4d85606c6a4f273cefa5c573619a
+      size: 292
     - path: artifacts/mlflow_run_id.yaml
-      md5: 2910353456c5849f25704788b7d08bc7
-      size: 80
+      md5: c420423e0abc9cc056829f29653c3d3c
+      size: 99
     - path: artifacts/training_logs.csv
-      md5: a5d2a95c92c7c5a6d6bc8c579ef6616d
-      size: 78011
+      md5: 831f209633eac7477a8b6ef7660d7e5b
+      size: 234640
   data_assim:
-    cmd: source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark.py
+    cmd: source /home/.set_environment_variables.sh && python3.10 data_assimilation_benchmark_wip.py
       --config config.yaml --run-id-yaml /home/smoke/artifacts/mlflow_run_id.yaml
     deps:
     - path: artifacts/mlflow_run_id.yaml
-      md5: 2910353456c5849f25704788b7d08bc7
-      size: 80
+      md5: c420423e0abc9cc056829f29653c3d3c
+      size: 99
     - path: artifacts/training_logs.csv
-      md5: a5d2a95c92c7c5a6d6bc8c579ef6616d
-      size: 78011
+      md5: 831f209633eac7477a8b6ef7660d7e5b
+      size: 234640
     - path: config.yaml
-      md5: 243628042b70ec34d277c9fed7c83a24
-      size: 399
-    - path: data_assimilation_benchmark.py
-      md5: 367c74706158147ac9416199d52edf94
-      size: 9114
+      md5: 7aea0f53ce63df280cdbbddcfd74c108
+      size: 503
+    - path: data_assimilation_benchmark_wip.py
+      md5: da94577c464fcf87f2382184f28f319e
+      size: 14524
     params:
       config.yaml:
-        DA.n_cycle: 5
+        DA.n_cycle: 20
         DA.n_inner: 100
         DA.n_outer: 5
         model.window: 10
     outs:
     - path: artifacts/DA_logs.csv
-      md5: 26e7dbcafb08197ec3bff13275539201
-      size: 19145
+      md5: 0c1bf1bd985fcd88816bc3b06edcecb3
+      size: 210628
     - path: artifacts/cond_niter_boxplot.png
-      md5: 6af3c164b1ebf5e7c7f50362ec2c3e7a
-      size: 31488
+      md5: 64d2c2172a9a4943078688c944d1ba87
+      size: 46906
     - path: artifacts/res_inner_loop.png
-      md5: c4d27a5d9b9d471a883fdfb646c7aa0d
-      size: 324235
+      md5: d1dbb29b38dd93873d66aceedef25fb8
+      size: 298172
   test:
     cmd: source /home/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
       /home/smoke/artifacts/mlflow_run_id.yaml
     deps:
     - path: artifacts/mlflow_run_id.yaml
-      md5: 2910353456c5849f25704788b7d08bc7
-      size: 80
+      md5: c420423e0abc9cc056829f29653c3d3c
+      size: 99
     - path: config.yaml
-      md5: 243628042b70ec34d277c9fed7c83a24
-      size: 399
+      md5: 2af0cc6bd74de6430043e061a66cd806
+      size: 503
     - path: test.py
-      md5: d6397d2ffe0d1338a14f237a46654dc3
-      size: 8734
+      md5: a03254f7903f07a20d717062a555cde7
+      size: 9230
     - path: training.py
-      md5: b55a5e60e13443c9a9120e629486ff02
-      size: 4611
+      md5: e77f8d740465e0934333de203f7f376e
+      size: 5337
     params:
       config.yaml:
-        data.data_path: /root/raw_data/data_100.pkl
+        data.data_folder: /root/raw_data/data_40_large
     outs:
     - path: artifacts/condition_numbers.png
-      md5: 3061bf807187f141174a7a19c2dcf3a4
-      size: 30115
+      md5: 6fbaff10b45bc75aba4a8c21fc0d876c
+      size: 24653
     - path: artifacts/preconditioning.png
-      md5: 12e96ea7fca8fdc4154eac6f674ad6f8
-      size: 193313
+      md5: 01d8da0ea48c26d2fa62ea28fd267ab5
+      size: 85331
     - path: artifacts/sanity_check.png
-      md5: 6fb681aa78f44d94865d4f87dfcecb8d
-      size: 94657
+      md5: cd7239feb6117dd95b23933990cd296f
+      size: 47470
     - path: artifacts/svd_approximation.png
-      md5: 25f9a73b4596c8d399cd0df989bd98da
-      size: 108195
+      md5: 5a7b57e25ff1a7da94581b3fcfbcc815
+      size: 152918

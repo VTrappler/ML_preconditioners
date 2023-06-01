@@ -1,22 +1,23 @@
 model:
-  dimension: 100
+  dimension: 40
   window: 10
 data:
-  data_path: /root/raw_data/data_100.pkl
-  data_folder: /root/raw_data/data_100
-  nsamples: 20000
+  # data_path: /root/raw_data/data_100.pkl
+  # data_folder: /root/raw_data/data_40_large_window_20
+  data_folder: /root/raw_data/data_40_large
+  nsamples: 50000
 architecture:
-  class: SVDConvolutional
-  rank: 50
-  n_layers: 6
+  class: SVDConvolutionalSPAI
+  rank: 40
+  n_layers: 8
   neurons_per_layer: 0
   batch_size: 8
-  lr: 1e-4
-  n_rnd_vectors: 100
+  lr: 1e-5
+  n_rnd_vectors: 0
 optimizer:
-  epochs: 100
+  epochs: 25
 DA:
-  n_cycle: 5
+  n_cycle: 20
   n_outer: 5
   n_inner: 100
   model_error_sqrt: 0.5

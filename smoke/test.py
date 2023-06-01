@@ -204,7 +204,7 @@ def condition_numbers(
             pd.DataFrame(
                 {
                     "condition": prec_condition_number,
-                    "matrix": "preconditioned",
+                    "matrix": "prec",
                 }
             ),
         ]
@@ -258,6 +258,9 @@ if __name__ == "__main__":
         with open("config.yaml", "r") as fstream:
             conf = yaml.safe_load(fstream)
             rank = conf["architecture"]["rank"]
+            window = conf["model"]["window"]
+            dim = conf["model"]["dimension"]
+            nsamples = conf["data"]["nsamples"]
     except:
         rank = 0
 
@@ -266,9 +269,25 @@ if __name__ == "__main__":
     loaded_model = mlflow.pyfunc.load_model(logged_model)
     logger.info(f"{loaded_model=}")
 
-    with open(data_path, "rb") as handle:
-        data = pickle.load(handle)
-    x_, fo_, tlm_ = zip(*data)
+    # with open(data_path, "rb") as handle:
+    #     data = pickle.load(handle)
+    # x_, fo_, tlm_ = zip(*data)
+
+    x_mmap = "/root/raw_data/data_40_large/x.memmap"
+    tlm_mmap = "/root/raw_data/data_40_large/tlm.memmap"
+
+    x_ = np.memmap(
+        x_mmap,
+        dtype="float32",
+        mode="c",
+        shape=(nsamples, dim),
+    )
+    tlm_ = np.memmap(
+        tlm_mmap,
+        dtype="float32",
+        mode="c",
+        shape=(nsamples, dim * window, dim),
+    )
 
     x_ = np.asarray(x_)
     # approximations, preconditioners = construct_matrices(x_)

@@ -21,7 +21,12 @@ from lightning.pytorch.loggers import CSVLogger
 from prec_data.data_memmap import TangentLinearDataModuleMEMMAP
 from prec_models import construct_model_class
 from prec_models.models_limitedmemoryprec import LimitedMemoryPrecRegularized, LMPPrec
-from prec_models.models_spectral import DeflationPrec, SVDConvolutional, SVDPrec
+from prec_models.models_spectral import (
+    DeflationPrec,
+    SVDConvolutional,
+    SVDPrec,
+    SVDConvolutionalSPAI,
+)
 from prec_models.models_unstructured import LowRank
 
 progress_bar = RichProgressBar(
@@ -42,6 +47,19 @@ logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
 smoke_path = os.path.join(os.sep, "home", "smoke")
 artifacts_path = os.path.join(smoke_path, "artifacts")
 
+from collections.abc import MutableMapping
+
+
+def flatten_dict(d, parent_key="", sep="/"):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
 
 # from dotenv import load_dotenv, dotenv_values
 model_list = [
@@ -51,6 +69,7 @@ model_list = [
     LMPPrec,
     LimitedMemoryPrecRegularized,
     LowRank,
+    SVDConvolutionalSPAI,
 ]
 model_classes = {cl.__name__: cl for cl in model_list}
 
@@ -74,7 +93,8 @@ def main(config):
     state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
 
-    data_path = config["data"]["data_path"]
+    data_path = config["data"].get("data_path", None)
+    data_folder = config["data"].get("data_folder", None)
 
     torch_model = construct_model_class(
         model_classes[config["architecture"]["class"]],
@@ -83,10 +103,14 @@ def main(config):
     model = torch_model(state_dimension=state_dimension, config=config["architecture"])
 
     config["optimizer"].pop("lr", None)
-    mlflow.log_params(config)
+    mlflow.log_params(flatten_dict(config))
 
     with open(os.path.join(artifacts_path, "mlflow_run_id.yaml"), "w") as fh:
-        run_id_dict = {"run_id": run.info.run_id, "data_path": data_path}
+        run_id_dict = {
+            "run_id": run.info.run_id,
+            "data_path": data_path,
+            "data_folder": data_folder,
+        }
         OmegaConf.save(config=run_id_dict, f=fh)
 
     datamodule = TangentLinearDataModuleMEMMAP(
@@ -100,6 +124,7 @@ def main(config):
         shuffling=True,
         normalization=False,
     )
+    datamodule.setup(None)
     trainer = pl.Trainer(
         max_epochs=config["optimizer"]["epochs"],
         logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
@@ -115,7 +140,10 @@ def main(config):
     #     mats = model.construct_full_matrix(forw)
     #     print(f"{mats.shape=}")
     #     print(f"{mats}")
-    trainer.fit(model, datamodule)
+    trainer.fit(
+        model,
+        datamodule=datamodule,
+    )
     print(trainer.logged_metrics)
     shutil.copyfile(
         os.path.join(logs_path, "lightning_logs", "smoke", "metrics.csv"),

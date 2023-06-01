@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 def generate_new_state(lorenz, x):
     return lorenz.lorenz_model.integrate(0, x, lorenz.period_assim)[1][
         :, -1
-    ] + 0.5 * np.random.normal(size=len(x))
+    ] + 0.0 * np.random.normal(size=len(x))
 
 
 def generate_training_pair_x(lorenz, x):
@@ -48,7 +48,7 @@ def generate_and_save_training_memmap(
         x0 = lorenz.initial_state
     train = []
     x = x0
-    flush_every = 100
+    flush_every = 500
     for i in trange(Nobs):
         x, forw, tlm = generate_training_pair_x(lorenz, x)
         x_memmap[i, ...] = x
@@ -126,4 +126,4 @@ if __name__ == "__main__":
     training_data = generate_and_save_training_memmap(
         lorenz, x_memmap, tlm_memmap, Nobs=nsamples
     )
-    save_data(training_data, target)
+    # save_data(training_data, target)

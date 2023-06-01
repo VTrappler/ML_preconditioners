@@ -75,3 +75,8 @@ class TangentLinearDataModuleMEMMAP(TangentLinearDataModule):
             tangentlinear_dataset, splitting_lengths
         )
         self.norm_cst = 1.0
+
+        self.state_test, _, tlm_test = self.test[0]
+
+        self.GN_test = tlm_test.T @ tlm_test
+        self.U_test, self.S_test, _ = torch.linalg.svd(self.GN_test)

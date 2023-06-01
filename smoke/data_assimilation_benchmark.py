@@ -135,10 +135,14 @@ def main(config, loaded_model=None):
 
     window = 10
     lorenz = LorenzWrapper(n)
-    x0_t = burn_model(n, 1000)
+    x0_t = burn_model(lorenz, 1000)
     lorenz.n_total_obs = window
 
     m = n * (window + 1)
+
+    lorenz.background_error_cov_inv = np.eye(n)
+    lorenz.background = np.zeros(n)
+
     lorenz.set_observations(window)
     lorenz.H = lambda x: x
 

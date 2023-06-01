@@ -234,6 +234,7 @@ class BaseModel(pl.LightningModule):
         # optimizer = Adam(self.parameters(), lr=1e-3)
         # scheduler = PlOnPlateau(optimizer, ...)
         # return [optimizer], [scheduler]
+        self.trainer.fit_loop.setup_data()
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-3)
         scheduler = CosineAnnealingLR(optimizer, T_max=20)
         return [optimizer], [scheduler]

@@ -43,9 +43,12 @@ progress_bar = RichProgressBar(
 )
 
 
-logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
-smoke_path = os.path.join(os.sep, "home", "smoke")
-artifacts_path = os.path.join(smoke_path, "artifacts")
+# logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
+# exp_path = os.path.join(os.sep, "home", "smoke")
+logs_path = os.path.join(os.sep, "data", "data_data_assimilation", "log_dump", "lorenz")
+exp_path = os.path.join(os.sep, "GNlearning", "lorenz")
+
+artifacts_path = os.path.join(exp_path, "artifacts")
 
 from collections.abc import MutableMapping
 
@@ -90,6 +93,12 @@ def main(config):
         run_id=run.info.run_id,
     )
 
+    print(f"{torch.cuda.is_available()=}")
+    print(f"{torch.cuda.device_count()=}")
+    print(f"{torch.cuda.current_device()=}")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"{device=}")
+
     state_dimension = config["model"]["dimension"]
     print(f"{state_dimension=}")
 
@@ -119,13 +128,16 @@ def main(config):
         dim=state_dimension,
         window=config["model"]["window"],
         batch_size=config["architecture"]["batch_size"],
-        num_workers=4,
-        splitting_lengths=[0.8, 0.1, 0.1],
+        num_workers=5,
+        splitting_lengths=[0.1, 0.1, 0.8],
         shuffling=True,
         normalization=False,
     )
     datamodule.setup(None)
+
     trainer = pl.Trainer(
+        accelerator="cpu",
+        # devices=1,
         max_epochs=config["optimizer"]["epochs"],
         logger=[mlf_logger, CSVLogger(logs_path, version="smoke")],
         callbacks=[progress_bar],
@@ -134,12 +146,15 @@ def main(config):
     test_input = torch.normal(
         0, 1, size=(config["architecture"]["batch_size"], state_dimension)
     )
+
     forw = model.forward(test_input)
     print(f"{forw.shape=}")
+    # print(f"{forw=}")
 
-    #     mats = model.construct_full_matrix(forw)
-    #     print(f"{mats.shape=}")
-    #     print(f"{mats}")
+    # mats = model.construct_full_matrix(forw)
+    # print(f"{mats.shape=}")
+    # print(f"{mats}")
+
     trainer.fit(
         model,
         datamodule=datamodule,
@@ -152,13 +167,15 @@ def main(config):
 
     with open(os.path.join(artifacts_path, "metrics.yaml"), "w") as fp:
         metrics_dict = {k: float(v) for k, v in trainer.logged_metrics.items()}
-        # metrics_dict["run_id"] = run.info.run_id
+        metrics_dict["run_id"] = run.info.run_id
         OmegaConf.save(config=metrics_dict, f=fp)
 
     signature = mlflow.models.signature.infer_signature(
         test_input.detach().numpy(), forw.detach().numpy()
     )
-    mlflow.pytorch.log_model(model, "smoke_model", signature=signature)
+    mlflow.pytorch.log_model(
+        model, "smoke_model", signature=signature, code_paths=["."]
+    )
 
 
 if __name__ == "__main__":

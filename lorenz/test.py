@@ -2,14 +2,21 @@ import argparse
 import os
 import pickle
 import sys
-
+import logging
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
+import seaborn as sns
+import pandas as pd
 
-sys.path.append("/home/")
-fig_folder = os.path.join(os.sep, "home", "smoke", "artifacts")
+plt.style.use("seaborn-v0_8")
+plt.set_cmap("magma")
+sys.path.append("/GNlearning/") # TODO: to robustify
+# fig_folder = os.path.join(os.sep, "home", "lorenz", "artifacts") # TODO: to robustify
+fig_folder = os.path.join(os.sep, "GNlearning", "lorenz", "artifacts") # TODO: to robustify
+
 import tqdm
+
 
 
 def bmm(a, b):
@@ -86,6 +93,15 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
 #     return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
+def construct_svd_ML(loaded_model, x_):
+    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    Ur = bqr(Ur)
+    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+    return Sr.squeeze(), Ur.squeeze()
+
+
 def construct_matrices(x_):
     Sr, Ur = construct_svd_ML(loaded_model, x_)
     Sr_minus_1 = Sr ** (-1) - 1
@@ -102,17 +118,8 @@ def get_approximate_singular_val(x_):
     return sv
 
 
-def construct_svd_ML(loaded_model, x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
-    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
-    Sr = np.exp(logsvals)
-    Ur = bqr(Ur)
-    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
-    return Sr.squeeze(), Ur.squeeze()
-
-
 def gauss_newton_approximation_svd(
-    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximatoin")
+    x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
 ):
     for j, idx in enumerate(indices):
         plt.subplot(3, 5, 1 + j)
@@ -158,6 +165,7 @@ def preconditioned_svd(
     preconditioners,
     tlm_,
     indices,
+    rank,
     figname=os.path.join(fig_folder, "preconditioning"),
 ):
     plt.figure(figsize=(10, 6))
@@ -169,13 +177,14 @@ def preconditioned_svd(
         plt.imshow(preconditioned_gn)
         plt.subplot(2, 5, 6 + j)
         _, sv, _ = np.linalg.svd(preconditioned_gn)
-        plt.plot(sv, label="p")
+        plt.plot(np.roll(sv, rank), label="prec")
         _, sv_original, _ = np.linalg.svd(gn)
-        plt.plot(sv_original, label="GN")
+        plt.plot(sv_original, label="original")
         plt.title(
             f"k: {np.linalg.cond(gn):.2e}\nk_p = {np.linalg.cond(preconditioned_gn):.2e}"
         )
         plt.yscale("log")
+        plt.legend()
     plt.tight_layout()
     plt.savefig(figname)
     plt.close()
@@ -186,10 +195,30 @@ def condition_numbers(
 ):
     original_condition_number = np.linalg.cond((bt(tlm_) @ tlm_))
     sorted_indices = np.argsort(original_condition_number)
-    prec_condition_number = np.linalg.cond((bt(tlm_) @ tlm_ @ preconditioners))
+    prec_condition_number = np.linalg.cond(preconditioners @ (bt(tlm_) @ tlm_))
+    df = pd.concat(
+        [
+            pd.DataFrame(
+                {
+                    "condition": original_condition_number,
+                    "matrix": "baseline",
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "condition": prec_condition_number,
+                    "matrix": "prec",
+                }
+            ),
+        ]
+    )
+    plt.subplot(2, 1, 1)
     plt.plot(original_condition_number[sorted_indices], ".")
     plt.plot(prec_condition_number[sorted_indices], ".")
     plt.yscale("log")
+    plt.subplot(2, 1, 2)
+    sns.boxplot(df, y="matrix", x="condition")
+    plt.xscale("log")
     plt.savefig(figname)
     plt.close()
 
@@ -208,6 +237,10 @@ def range_singular_values(tlm_):
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.debug("debug")
     parser = argparse.ArgumentParser(description="Use Surrogate in inference")
     parser.add_argument("--run-id", type=str, default="")
     parser.add_argument("--run-id-yaml", type=str, default="")
@@ -224,14 +257,41 @@ if __name__ == "__main__":
             run_id = run_id_yaml["run_id"]
             data_path = run_id_yaml["data_path"]
 
+    try:
+        with open("config.yaml", "r") as fstream:
+            conf = yaml.safe_load(fstream)
+            rank = conf["architecture"]["rank"]
+            window = conf["model"]["window"]
+            dim = conf["model"]["dimension"]
+            nsamples = conf["data"]["nsamples"]
+    except:
+        rank = 0
+
     logged_model = f"runs:/{run_id}/smoke_model"
     # mlflow.pyfunc.get_model_dependencies(logged_model)
     loaded_model = mlflow.pyfunc.load_model(logged_model)
-    print(f"{loaded_model=}")
+    logger.info(f"{loaded_model=}")
 
-    with open(data_path, "rb") as handle:
-        data = pickle.load(handle)
-    x_, fo_, tlm_ = zip(*data)
+    # with open(data_path, "rb") as handle:
+    #     data = pickle.load(handle)
+    # x_, fo_, tlm_ = zip(*data)
+    # data_path = "/root/raw_data/data_100_large"
+    data_path = '/data/data_data_assimilation/data_100_large' #TODO: to robustify
+    x_mmap = os.path.join(data_path, 'x.memmap')
+    tlm_mmap = os.path.join(data_path, 'tlm.memmap')
+
+    x_ = np.memmap(
+        x_mmap,
+        dtype="float32",
+        mode="c",
+        shape=(nsamples, dim),
+    )
+    tlm_ = np.memmap(
+        tlm_mmap,
+        dtype="float32",
+        mode="c",
+        shape=(nsamples, dim * window, dim),
+    )
 
     x_ = np.asarray(x_)
     # approximations, preconditioners = construct_matrices(x_)
@@ -239,26 +299,28 @@ if __name__ == "__main__":
     tlm_ = np.asarray(tlm_)
     # plt.figure(figsize=(12, 6))
     indices = np.random.randint(0, len(x_), size=5)
+    # indices = [0, 1, 2, 3, 4]
 
     range_singular_values(tlm_)
-    print("svd approximation")
+    logger.info("svd approximation")
     gauss_newton_approximation_svd(
         x_, tlm_, indices, figname=os.path.join(fig_folder, "svd_approximation")
     )
-    print("preconditioning")
+    logger.info("preconditioning")
     preconditioned_svd(
         preconditioners,
         tlm_,
         indices,
+        rank,
         figname=os.path.join(fig_folder, "preconditioning"),
     )
 
-    print("condition numbers")
+    logger.info("condition numbers")
     condition_numbers(
         preconditioners, tlm_, figname=os.path.join(fig_folder, "condition_numbers")
     )
 
-    print("sanity check")
+    logger.info("sanity check")
     sanity_check(
         approximations,
         preconditioners,

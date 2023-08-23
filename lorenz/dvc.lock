@@ -1,0 +1,137 @@
+schema: '2.0'
+stages:
+  generate_data:
+    cmd: python3.10 /home/prec_data/data_generation.py --config /home/smoke/config.yaml
+    deps:
+    - path: ../prec_data/data_generation.py
+      md5: da8a2b9ec578b42827bf53b02610227e
+      size: 3647
+    params:
+      config.yaml:
+        data.data_folder: /root/raw_data/data_100_large
+        data.nsamples: 20000
+        model.dimension: 100
+        model.window: 10
+    outs:
+    - path: /root/raw_data/data_100_large/tlm.memmap
+      md5: 1bc453820c1f9ed0017a8a7190654970
+      size: 8000000000
+    - path: /root/raw_data/data_100_large/x.memmap
+      md5: ca26b5b4725349ce9f058417308960b6
+      size: 8000000
+  train:
+    cmd: source /GNlearning/.set_environment_variables.sh && python3.10 /GNlearning/smoke/training.py
+      --config config.yaml --exp-name smoke_train_tr
+    deps:
+    - path: ../prec_data/data.py
+      md5: 5a4f754e59a2202ad6284151222ab4ee
+      size: 13442
+    - path: config.yaml
+      hash: md5
+      md5: b69443e7cb8c3728219a775617db764c
+      size: 663
+    - path: training.py
+      hash: md5
+      md5: d37be277e8d174bc1e403b249f3d345c
+      size: 5808
+    params:
+      config.yaml:
+        architecture.batch_size: 8
+        architecture.class: SVDConvolutional
+        architecture.n_layers: 4
+        architecture.rank: 95
+        data.data_folder: /data/data_data_assimilation/data_100_large
+        model.dimension: 100
+        optimizer.epochs: 3
+    outs:
+    - path: artifacts/metrics.yaml
+      hash: md5
+      md5: 15f08f2a0479902fe832d645960de2fc
+      size: 338
+    - path: artifacts/mlflow_run_id.yaml
+      hash: md5
+      md5: 5dc9f4f467de12f0143bb682d28f15f2
+      size: 114
+    - path: artifacts/training_logs.csv
+      hash: md5
+      md5: 991d45ebc0039f0e8e78dd4d116a15a5
+      size: 10665
+  data_assim:
+    cmd: source /GNlearning/.set_environment_variables.sh && python3.10 data_assimilation_benchmark_wip.py
+      --config config.yaml --run-id-yaml /GNlearning/smoke/artifacts/mlflow_run_id.yaml
+    deps:
+    - path: artifacts/mlflow_run_id.yaml
+      hash: md5
+      md5: 92300ecb9c4f16f7fadf271074820e35
+      size: 114
+    - path: artifacts/training_logs.csv
+      hash: md5
+      md5: ba6e5bb8a94faca65d8630b300528ee1
+      size: 387503
+    - path: config.yaml
+      hash: md5
+      md5: 8d126097a05199b5b0999ad6a108b140
+      size: 665
+    - path: data_assimilation_benchmark_wip.py
+      hash: md5
+      md5: 0613d1b93656f98bcfed49ae1ee929aa
+      size: 15770
+    params:
+      config.yaml:
+        DA.n_cycle: 10
+        DA.n_inner: 100
+        DA.n_outer: 5
+        model.window: 10
+    outs:
+    - path: artifacts/DA_logs.csv
+      hash: md5
+      md5: f30e50d3be9064c4b62bccd346cd159a
+      size: 38557
+    - path: artifacts/cond_niter_boxplot.png
+      hash: md5
+      md5: 6a098a53e95aad07e956bb5e1f3d4fc7
+      size: 36192
+    - path: artifacts/res_inner_loop.png
+      hash: md5
+      md5: ecddea6458f149289443d6ed81380c73
+      size: 288261
+  test:
+    cmd: source /GNlearning/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
+      /GNlearning/smoke/artifacts/mlflow_run_id.yaml
+    deps:
+    - path: artifacts/mlflow_run_id.yaml
+      hash: md5
+      md5: 92300ecb9c4f16f7fadf271074820e35
+      size: 114
+    - path: config.yaml
+      hash: md5
+      md5: 8d126097a05199b5b0999ad6a108b140
+      size: 665
+    - path: test.py
+      hash: md5
+      md5: a34244d963740cb44fea6a136370b7cc
+      size: 9496
+    - path: training.py
+      hash: md5
+      md5: d37be277e8d174bc1e403b249f3d345c
+      size: 5808
+    params:
+      config.yaml:
+        data.data_folder: /data/data_data_assimilation/data_100_large
+    outs:
+    - path: artifacts/condition_numbers.png
+      hash: md5
+      md5: 5125740373b2b4f067bc27ae57604c79
+      size: 40860
+    - path: artifacts/preconditioning.png
+      hash: md5
+      md5: 9cd5676215abb0748456243ab99033f9
+      size: 171008
+    - path: artifacts/sanity_check.png
+      hash: md5
+      md5: 47ae49a860f71680beee1a9738136fb8
+      size: 60298
+    - path: artifacts/svd_approximation.png
+      hash: md5
+      md5: 5864c2c86f6e5470b0a18796e84c9ee1
+      size: 130247

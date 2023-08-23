@@ -1,0 +1,36 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: . /GNlearning/.set_environment_variables.sh && python3.10 /GNlearning/SW/training.py
+      --config config.yaml --exp-name SW_GN_learning
+    deps:
+    - path: config.yaml
+      hash: md5
+      md5: de745512a91497ab28478de2596f3796
+      size: 672
+    - path: training.py
+      hash: md5
+      md5: ef9311ab4f5966f247243b3bff5d4d83
+      size: 7182
+    params:
+      config.yaml:
+        architecture.batch_size: 3
+        architecture.class: SW_UNet
+        architecture.n_layers: 0
+        architecture.rank: 2000
+        data.data_folder: /data/data_data_assimilation/shallow_water/large
+        model.dimension: 12160
+        optimizer.epochs: 200
+    outs:
+    - path: artifacts/metrics.yaml
+      hash: md5
+      md5: e3a6b1665d8c52879bee7d96db0c9773
+      size: 305
+    - path: artifacts/mlflow_run_id.yaml
+      hash: md5
+      md5: 4be1a20e256c6112ec0368a0494308af
+      size: 235
+    - path: artifacts/training_logs.csv
+      hash: md5
+      md5: 1aa2acb3397c5785c41be7a661ec0698
+      size: 195401

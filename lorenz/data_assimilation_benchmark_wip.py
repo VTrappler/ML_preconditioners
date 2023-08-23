@@ -33,9 +33,13 @@ from DA_PoC.common.preconditioned_solvers import PreconditionedSolver, SplitPrec
 from DA_PoC.variational.incrementalCG import Incremental4DVarCG, pad_ragged
 
 logging.basicConfig(level=logging.INFO)
-logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
-smoke_path = os.path.join(os.sep, "home", "smoke")
-artifacts_path = os.path.join(smoke_path, "artifacts")
+logs_path = os.path.join(
+    os.sep, "data", "data_data_assimilation" "log_dump", "smoke"
+)  # TODO: robustify
+exp_path = os.path.join(os.sep, "GNlearning", "lorenz")  # TODO: robustify
+# logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
+# exp_path = os.path.join(os.sep, "home", "smoke")
+artifacts_path = os.path.join(exp_path, "artifacts")
 
 
 def bmm(a, b):
@@ -150,7 +154,7 @@ class MLNaiveLMP(MLSplitPrecTruncated):
         Sr_s, Ur_s = Sr[sorted_idx], Ur[:, sorted_idx]
         Sr = Sr_s[: self.rank]
         Ur = Ur_s[:, : self.rank]
-        H = construct_LMP(40, Ur, A @ Ur)
+        H = construct_LMP(n, Ur, A @ Ur)
         x_hat, res_dict = conjGrad(
             H @ A,
             0 * b,
@@ -163,15 +167,15 @@ class MLNaiveLMP(MLSplitPrecTruncated):
 
 
 def naive_LMP(A, b, x, loaded_model):
-    pred = loaded_model.predict(np.asarray(x).reshape(1, 40).astype("f"))
+    pred = loaded_model.predict(np.asarray(x).reshape(1, n).astype("f"))
     Ur = pred[:, :-1, :].squeeze()
-    H = construct_LMP(40, Ur, A @ Ur)
+    H = construct_LMP(n, Ur, A @ Ur)
     return H @ A, H @ b
 
 
-class MLPseudoInverse(MLPrec):
-    def __init__(self, ML_model, tol: float = 1e-8, maxiter: int = 40):
-        super().__init__(ML_model, tol, maxiter)
+class MLPseudoInverse(MLSplitPrecTruncated):
+    def __init__(self, ML_model, rank: int, tol: float = 1e-8, maxiter: int = 40):
+        super().__init__(ML_model, rank, tol, maxiter)
 
     def __call__(self, A, b, x, maxiter):
         pseudo_inv = self.low_rank_reconstruction(x, power=-1)
@@ -266,11 +270,11 @@ def construct_projector_exact(num_model, x_, rk):
 
 def preconditioner_from_SVD(S, U, regul=0.0):
     regul_sv = (S / (regul + S**2)) - 1
-    return U @ (regul_sv * U).T + np.eye(40)
+    return U @ (regul_sv * U).T + np.eye(n)
 
 
 def naive_LMP(A, b, x, loaded_model):
-    pred = loaded_model.predict(np.asarray(x).reshape(1, 40).astype("f"))
+    pred = loaded_model.predict(np.asarray(x).reshape(1, n).astype("f"))
     Ur = pred[:, :-1, :].squeeze()
     H = construct_LMP(40, Ur, A @ Ur)
     return H @ A, H @ b
@@ -278,7 +282,7 @@ def naive_LMP(A, b, x, loaded_model):
 
 def regularized_balance(alpha_regul):
     def ML_balance(x):
-        pred = loaded_model.predict(np.asarray(x).reshape(1, 40).astype("f"))
+        pred = loaded_model.predict(np.asarray(x).reshape(1, n).astype("f"))
         Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
         Sr = np.exp(logsvals).squeeze()
         Ur = bqr(Ur).squeeze()
@@ -331,7 +335,7 @@ def main(config, loaded_model=None):
 
     DA_exp_dict = {}
 
-    def create_DA_experiment(exp_name, prec):
+    def create_DA_experiment(exp_name, prec, rank=0):
         DA_exp = Incremental4DVarCG(
             state_dimension=n,
             bounds=None,
@@ -350,6 +354,7 @@ def main(config, loaded_model=None):
         )
         DA_exp.GNlog_file = log_file
         DA_exp.exp_name = exp_name
+        DA_exp.rank = rank
         DA_exp_dict[exp_name] = DA_exp
         return DA_exp
 
@@ -357,26 +362,35 @@ def main(config, loaded_model=None):
 
     # _ = create_DA_experiment("MLsplit", prec=MLSplitPrec(loaded_model, maxiter=n_inner))
 
-    DA_baseline = create_DA_experiment("baseline", prec=None)
+    DA_baseline = create_DA_experiment("baseline", prec=None, rank=0)
 
+    # _ = create_DA_experiment(
+    #     f"MLPseudoInv100",
+    #     prec=MLPseudoInverse(loaded_model, rank=100, maxiter=n_inner),
+    # )
     for i in [
+        # 99,
+        90,
+        # 35,
+        # 60,
+        # 25,
         40,
-        35,
-        30,
-        25,
-        20,
-        15,
+        # 15,
     ]:
         _ = create_DA_experiment(
             f"MLSplit_{i}",
             prec=MLSplitPrecTruncated(loaded_model, rank=i, maxiter=n_inner),
+            rank=i,
         )
         _ = create_DA_experiment(
             f"MLNaiveLMP_{i}",
             prec=MLNaiveLMP(loaded_model, rank=i, maxiter=n_inner),
+            rank=i,
         )
         _ = create_DA_experiment(
-            f"Split_{i}", prec=SplitPrec(l_model_randobs, rank=i, maxiter=n_inner)
+            f"Split_{i}",
+            prec=SplitPrec(l_model_randobs, rank=i, maxiter=n_inner),
+            rank=i,
         )
 
     #     )
@@ -403,7 +417,11 @@ def main(config, loaded_model=None):
         print(f"\n--- {exp_name} ---\n")
         DA_exp.run()
         cond, niter = DA_exp.extract_condition_niter()
-        df_list.append(pd.DataFrame({"niter": niter, "cond": cond, "name": exp_name}))
+        df_list.append(
+            pd.DataFrame(
+                {"niter": niter, "cond": cond, "name": exp_name, "rank": DA_exp.rank}
+            )
+        )
 
     for i, (exp_name, DA_exp) in enumerate(DA_exp_dict.items()):
         DA_exp.plot_residuals_inner_loop(
@@ -418,6 +436,22 @@ def main(config, loaded_model=None):
     df_baseline = df[df["name"] == "baseline"]
     mean_cond_baseline = df_baseline["cond"].mean()
     mean_niter_baseline = df_baseline["niter"].mean()
+
+    plt.subplot(1, 2, 1)
+    ax = sns.boxplot(df, x="name", y="cond", hue="rank", orient="v", dodge=False)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
+    plt.ylabel("Condition number")
+    plt.axhline(y=mean_cond_baseline, color="r")
+
+    plt.subplot(1, 2, 2)
+    ax = sns.boxplot(df, x="name", y="niter", hue="rank", orient="v", dodge=False)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
+    plt.ylabel("CG iterations")
+    plt.axhline(y=mean_niter_baseline, color="r")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(artifacts_path, "cond_niter_boxplot_hue.png"))
+    plt.close()
 
     plt.subplot(1, 2, 1)
     ax = sns.boxplot(df, x="name", y="cond", orient="v")
@@ -435,19 +469,19 @@ def main(config, loaded_model=None):
     plt.savefig(os.path.join(artifacts_path, "cond_niter_boxplot.png"))
     plt.close()
 
-    plt.subplot(1, 2, 1)
-    ax = sns.violinplot(df, x="name", y="cond", orient="v")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
-    plt.ylabel("Condition number")
-    plt.axhline(y=mean_cond_baseline, color="r")
+    # plt.subplot(1, 2, 1)
+    # ax = sns.violinplot(df, x="name", y="cond", orient="v")
+    # ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
+    # plt.ylabel("Condition number")
+    # plt.axhline(y=mean_cond_baseline, color="r")
 
-    plt.subplot(1, 2, 2)
-    ax = sns.violinplot(df, x="name", y="niter", orient="v")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
-    plt.ylabel("CG iterations")
-    plt.axhline(y=mean_niter_baseline, color="r")
-    plt.tight_layout()
-    plt.savefig(os.path.join(artifacts_path, "cond_niter_violin.png"))
+    # plt.subplot(1, 2, 2)
+    # ax = sns.violinplot(df, x="name", y="niter", orient="v")
+    # ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
+    # plt.ylabel("CG iterations")
+    # plt.axhline(y=mean_niter_baseline, color="r")
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(artifacts_path, "cond_niter_violin.png"))
 
 
 if __name__ == "__main__":
@@ -460,6 +494,8 @@ if __name__ == "__main__":
     import mlflow
     import yaml
 
+    config = OmegaConf.load(args.config)
+    n = config["model"]["dimension"]
     sys.path.append("..")
     with open(args.run_id_yaml, "r") as fstream:
         run_id_yaml = yaml.safe_load(fstream)
@@ -470,5 +506,4 @@ if __name__ == "__main__":
     print(f"{loaded_model=}")
     # except:
     # loaded_model = None
-    config = OmegaConf.load(args.config)
     main(config, loaded_model)

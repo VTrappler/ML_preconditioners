@@ -16,6 +16,7 @@ from .base_models import (
     construct_model_class,
     eye_like,
     bgramschmidt,
+    low_rank_construction
 )
 
 from .convolutional_nn import ConvLayersSVD
@@ -61,10 +62,6 @@ def construct_matrix(orth_S, mu):
         wi = orth_S[:, :, i].view(batch_size, state_dimension, 1)
         sm += (mu[:, i].view(batch_size, 1, 1) - 1) * (wi.bmm(wi.mT))
     return sm + identity
-
-
-def low_rank_construction(singular_vectors, singular_values):
-    return singular_vectors.bmm(singular_values[:, :, None] * singular_vectors.mT)
 
 
 def power_singular_value_reconstruction(singular_vectors, singular_values, alpha):
@@ -149,6 +146,9 @@ class SVDPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
+        x.to('cuda')
+        forw.to('cuda')
+        tlm.to('cuda')
         GTG = self._construct_gaussnewtonmatrix(
             batch
         )  # Get the GN approximation of the Hessian matrix
@@ -167,12 +167,18 @@ class SVDPrec(BaseModel):
         # vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
         #     :, :-1, :
         # ]
-        vi = torch.nn.functional.normalize(vi, dim=1)
+        # vi = torch.nn.functional.normalize(vi, dim=1)
+
+        sing_vecs = torch.linalg.qr(vi)[0]
+        mse_rayleigh = self.mse(
+            sing_vecs.mT @ GTG @ sing_vecs, torch.diag_embed(sing_vals)
+        )
 
         ortho_reg = regul.loss_gram_matrix(vi)
-        loss = mse_approx + ortho_reg  # + 0.5 * reg
+        loss = mse_approx + mse_rayleigh + ortho_reg  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
-        self.log(f"Loss/{stage}_mse_approx", mse_approx)
+        self.log(f"Loss/{stage}_rayleigh", mse_rayleigh)
+        self.log(f"Loss/{stage}_lr_approx", mse_approx)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
 
     def _common_step_iterable(self, batch: Tuple, batch_idx: int, stage: str):
@@ -188,10 +194,10 @@ class SVDPrec(BaseModel):
         return {"loss": loss, "gtg": GtGdx.detach(), "y_hat": GtGdx_hat.detach()}
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
-        if (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
-            return self._common_step_randomvectors(batch, batch_idx, stage)
-        elif self.datatype == "full":
+        if (self.datatype == "full") or (self.n_rnd_vectors == 0):
             return self._common_step_full_norm(batch, batch_idx, stage)
+        elif (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors(batch, batch_idx, stage)
         elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
 
@@ -244,7 +250,7 @@ class SVDConvolutional(SVDPrec):
         )
 
     def on_validation_epoch_end(self):
-        print(self.global_step)
+        pass
         # if self.global_step != 0:
         #     state_test, _, tlm_test = self.train_dataloader().dataset[0]
         #     # state_test = torch.rand(size=(1, 100))

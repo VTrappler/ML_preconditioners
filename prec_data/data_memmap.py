@@ -29,8 +29,8 @@ class TangentLinearDatasetMEMMAP(Dataset):
     def __getitem__(self, idx):
         x = self.states[idx, ...]
         tlm = self.tangent_linear[idx, ...]
-        forward = torch.Tensor(np.array([np.nan]))
-        return torch.Tensor(x), forward, torch.Tensor(tlm)
+        forward = torch.tensor(np.array([np.nan]))
+        return torch.tensor(x), forward, torch.tensor(tlm)
 
 
 class TangentLinearDataModuleMEMMAP(TangentLinearDataModule):

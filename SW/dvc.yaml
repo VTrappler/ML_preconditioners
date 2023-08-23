@@ -2,15 +2,15 @@ params:
   - config.yaml
 vars:
   - abs_path: /GNlearning
-  - smoke_path: /GNlearning/SW
+  - exp_path: /GNlearning/SW
   - data_path: /data_data_assimilation #/root/raw_data
-  - artifacts_path: /GNlearning/SW/artifacts
+  - artifacts_path: ${exp_path}/artifacts
 
 stages:
   # generate_data:
   #   cmd: >-
   #     python3.10 ${abs_path}/prec_data/data_generation.py
-  #     --config ${smoke_path}/config.yaml
+  #     --config ${exp_path}/config.yaml
   #   deps:
   #     - ${abs_path}/prec_data/data_generation.py
   #   params:
@@ -30,7 +30,7 @@ stages:
       - config.yaml:data
     cmd: >-
       . ${abs_path}/.set_environment_variables.sh &&
-      python3.10 ${smoke_path}/training.py
+      python3.10 ${exp_path}/training.py
       --config config.yaml
       --exp-name SW_GN_learning
     deps:

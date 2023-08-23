@@ -1,7 +1,10 @@
 # State-dependent preconditioners for Variational Data Assimilation using Machine Learning
 ## Problem formulation
 In Variational Data assimilation, we are looking to solve the following minimisation problem.
-$$x_{\text{analysis}} = \mathop{\text{argmin}}_{x \in \mathbb{R}^n} \frac{1}{2} \|\mathcal{G}(x) - y \|^2_{R^{-1}} = \mathop{\text{argmin}}_{x \in \mathbb{R}^n} J(x)$$
+
+$$
+\min_{x \in \mathbb{R}^n}\frac{1}{2} \|\mathcal{G}(x) - y \|^2_{R^{-1}}
+$$
 In an incremental formulation, we proceed by successive linearization of the $J$ and thus of $\mathcal{G}$: this is the outer loop. For each outer loop iteration, we solve the following linear system with respect to $x_{i+1}$
 $$(G_{x_{i}}^TG_{x_{i}})x_{i+1} = -G_{x_{i}}^T(\mathcal{G}(x_i) - y)$$
 We aim at learning a preconditioner which depends solely on the current state in order to improve the convergence rate of the resolution of the linear system

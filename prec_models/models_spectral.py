@@ -16,7 +16,7 @@ from .base_models import (
     construct_model_class,
     eye_like,
     bgramschmidt,
-    low_rank_construction
+    low_rank_construction,
 )
 
 from .convolutional_nn import ConvLayersSVD
@@ -146,9 +146,9 @@ class SVDPrec(BaseModel):
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
-        x.to('cuda')
-        forw.to('cuda')
-        tlm.to('cuda')
+        x.to("cuda")
+        forw.to("cuda")
+        tlm.to("cuda")
         GTG = self._construct_gaussnewtonmatrix(
             batch
         )  # Get the GN approximation of the Hessian matrix
@@ -170,7 +170,7 @@ class SVDPrec(BaseModel):
         # vi = torch.nn.functional.normalize(vi, dim=1)
 
         sing_vecs = torch.linalg.qr(vi)[0]
-        mse_rayleigh = self.mse(
+        mse_rayleigh = 0 * self.mse(
             sing_vecs.mT @ GTG @ sing_vecs, torch.diag_embed(sing_vals)
         )
 

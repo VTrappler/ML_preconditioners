@@ -14,10 +14,10 @@ architecture:
   n_layers: 4
   neurons_per_layer: 0
   batch_size: 8
-  lr: 5e-5
+  lr: 1e-5
   n_rnd_vectors: 0
 optimizer:
-  epochs: 3 
+  epochs: 25
 DA:
   n_cycle: 10
   n_outer: 5
@@ -26,4 +26,5 @@ DA:
   obs_error_sqrt: 3.0
   # log_file: /home/lorenz/artifacts/DA_logs.csv
   log_file: /GNlearning/lorenz/artifacts/DA_logs.csv
-
+misc:
+  mlflow: true

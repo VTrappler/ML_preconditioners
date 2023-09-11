@@ -4,27 +4,9 @@ vars:
   - abs_path: /GNlearning
   - exp_path: /GNlearning/SW
   - data_path: /data_data_assimilation #/root/raw_data
-  - artifacts_path: ${exp_path}/artifacts
+  - artifacts_path: /GNlearning/SW/artifacts
 
 stages:
-  # generate_data:
-  #   cmd: >-
-  #     python3.10 ${abs_path}/prec_data/data_generation.py
-  #     --config ${exp_path}/config.yaml
-  #   deps:
-  #     - ${abs_path}/prec_data/data_generation.py
-  #   params:
-  #     - config.yaml:
-  #         - model.dimension
-  #         - model.window
-  #         - data.nsamples
-  #         - data.data_folder
-  #   vars:
-  #     - config.yaml:data
-        #    outs:
-        #      - ${data.data_folder}/x.memmap
-        #      - ${data.data_folder}/tlm.memmap
-
   train:
     vars:
       - config.yaml:data
@@ -36,8 +18,6 @@ stages:
     deps:
       - config.yaml
       - training.py
-        #      - ${data.data_folder}/x.memmap
-        #      - ${data.data_folder}/tlm.memmap
     params:
       - config.yaml:
           - data.data_folder
@@ -60,7 +40,7 @@ stages:
   #     - training.py
   #     - test.py
   #   cmd: >-
-  #     source ${abs_path}/.set_environment_variables.sh && 
+  #     source ${abs_path}/.set_environment_variables.sh &&
   #     python3.10 test.py
   #     --run-id-yaml ${artifacts_path}/mlflow_run_id.yaml
   #   params:
@@ -94,7 +74,6 @@ stages:
   #     - ${artifacts_path}/res_inner_loop.png
   #     - ${artifacts_path}/cond_niter_boxplot.png
   #   # plots:
-
 # plots:
 #   - ${artifacts_path}/training_logs.csv:
 #       template: linear

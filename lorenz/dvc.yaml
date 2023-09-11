@@ -4,7 +4,7 @@ vars:
   - abs_path: /GNlearning
   - exp_path: /GNlearning/lorenz
   - data_path: /data_data_assimilation #/root/raw_data
-  - artifacts_path: ${exp_path}/artifacts
+  - artifacts_path: /GNlearning/lorenz/artifacts
 
 stages:
   generate_data:

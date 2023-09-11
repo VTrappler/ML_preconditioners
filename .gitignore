@@ -9,3 +9,4 @@ _obsolete*
 .env
 .set_environment_variables.sh
 devcontainer.json
+.devcontainer

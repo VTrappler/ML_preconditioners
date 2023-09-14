@@ -1,18 +1,18 @@
 model:
   dimension: 12160
 data:
-  data_folder: /data/data_data_assimilation/shallow_water/large
-  nsamples: 2000
+  data_folder: /data/data_data_assimilation/shallow_water/basic_id
+  nsamples: 1000
 architecture:
-  class: SW_UNet
+  class: SW_TransUNet
   rank: 2000
   n_layers: 0
   neurons_per_layer: 0
-  batch_size: 3
-  lr: 1e-5
+  batch_size: 10
+  lr: 1e-6
   n_rnd_vectors: 0
 optimizer:
-  epochs: 200
+  epochs: 500
 DA:
   n_cycle: 10
   n_outer: 5

@@ -5,31 +5,6 @@ from .data import TangentLinearDataModule
 import os
 
 
-# eta_slice = slice(None, 64**2)
-# u_slice = slice(64**2, 64**2 + 63 * 64)
-# v_slice = slice(64**2 + 64 * 63, None)
-
-# def get_control_2D(state):
-#     n_batch = state.shape[0]
-#     return (
-#         state[:, eta_slice].reshape(n_batch, 64, 64),
-#         state[:, u_slice].reshape(n_batch, 63, 64),
-#         state[:, v_slice].reshape(n_batch, 64, 63),
-#     )
-
-
-# def pad_and_merge(state):
-#     n_batch = state.shape[0]
-#     eta, u, v = get_control_2D(state)
-#     out_vec = torch.empty((n_batch, 3, 64, 64))  # , names=('b', 'f', 'x', 'y')
-#     out_vec[:, 0, :, :] = eta
-#     out_vec[:, 1, 1:, :] = u
-#     out_vec[:, 1, 0, :] = u[:, 0, :]
-#     out_vec[:, 2, :, 1:] = v
-#     out_vec[:, 2, :, 0] = v[:, :, 0]
-#     return out_vec
-
-
 class SWDataset(Dataset):
     def __init__(self, folder):
         self.folder = folder
@@ -37,9 +12,10 @@ class SWDataset(Dataset):
         self.eta_slice = slice(None, 64**2)
         self.u_slice = slice(64**2, 64**2 + 63 * 64)
         self.v_slice = slice(64**2 + 64 * 63, None)
+        self.length = len([st for st in os.listdir(self.folder) if st.endswith('.npy')])
 
     def __len__(self):
-        return 2000
+        return self.length
 
     def __getitem__(self, idx):
         filename = f"gn_data_{idx:04d}.npy"
@@ -67,7 +43,7 @@ class SWDataModule(TangentLinearDataModule):
         super().__init__(
             folder, batch_size, num_workers, splitting_lengths, shuffling, False
         )
-        self.nsamples = 2000
+        self.nsamples = 1000
         self.dim = 64**2 + 2 * 63 * 64
         self.folder = folder
 

@@ -20,8 +20,16 @@ from .base_models import (
 from .convolutional_nn import ParamSigmoid
 
 from .regularization import Regularization
+from .unet_base import UNet as AttentionUNet
 
 controlsize = 64**2 + 2 * 63 * 64
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+eta_slice = slice(None, 64**2)
+u_slice = slice(64**2, 64**2 + 63 * 64)
+v_slice = slice(64**2 + 64 * 63, None)
+
+import math
 
 
 class UNet(pl.LightningModule):
@@ -163,10 +171,13 @@ class UNet(pl.LightningModule):
         #     self.final_dense_layer2,
         # )
         self.sigmoid = ParamSigmoid(0, 12)
+        print(self)
+
+    def __repr__(self):
         total_size = 0
         for i in self.parameters():
             total_size += i.element_size() * i.nelement()
-        print("UNet:", total_size / 1e9, "Gb")
+        return f"{self.__class__.__name__}: {total_size / 1e9} Gb"
 
     def forward_unet(self, x):
         # Encoder
@@ -201,6 +212,36 @@ class UNet(pl.LightningModule):
 
     def forward(self, x):
         x = self.forward_unet(x)
+        x = x.reshape(-1, int(self.rank), 3 * 64**2)
+        outputs = self.final_dense_layer(x).transpose(-1, -2)
+        vecs, vals = outputs[:, :-1, :], outputs[:, -1, :]
+        vals = self.sigmoid(vals)
+        return torch.concat([vecs, vals[:, None, :]], axis=1)
+
+
+class TransUNet(pl.LightningModule):
+    def __init__(self, rank):
+        super().__init__()
+        self.rank = rank
+        self.transUnet = AttentionUNet(
+            in_channel=3,
+            inner_channel=30,
+            out_channel=3 * self.rank,
+            res_blocks=5,
+            attn_res=[2, 4, 8],
+        )
+        self.final_dense_layer = nn.Linear(3 * 64**2, controlsize + 1)
+        self.sigmoid = ParamSigmoid(0, 12)
+        print(self)
+
+    def __repr__(self):
+        total_size = 0
+        for i in self.parameters():
+            total_size += i.element_size() * i.nelement()
+        return f"{self.__class__.__name__}: {total_size / 1e9} Gb"
+
+    def forward(self, x):
+        x = self.transUnet(x)
         x = x.reshape(-1, int(self.rank), 3 * 64**2)
         outputs = self.final_dense_layer(x).transpose(-1, -2)
         vecs, vals = outputs[:, :-1, :], outputs[:, -1, :]
@@ -392,10 +433,6 @@ class ConvNet(pl.LightningModule):
         return torch.concat([vecs, vals[:, None, :]], axis=1)
 
 
-eta_slice = slice(None, 64**2)
-u_slice = slice(64**2, 64**2 + 63 * 64)
-v_slice = slice(64**2 + 64 * 63, None)
-
 
 def get_control_2D(state):
     n_batch = state.shape[0]
@@ -406,26 +443,23 @@ def get_control_2D(state):
     )
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def pad_and_merge(state):
+    """
+    from batch of state vectors -> batch x channel x width x height
+    """
     n_batch = state.shape[0]
     eta, u, v = get_control_2D(state)
     out_vec = torch.empty(
         (n_batch, 3, 64, 64), device=device
     )  # , names=('b', 'f', 'x', 'y')
-    out_vec[:, 0, :, :] = eta / (4 * 40.0)  # trying normalization ?
+    out_vec[:, 0, :, :] = eta
     out_vec[:, 1, 1:, :] = u
     out_vec[:, 1, 0, :] = u[:, 0, :]
     out_vec[:, 2, :, 1:] = v
     out_vec[:, 2, :, 0] = v[:, :, 0]
-    return out_vec
-
-
-eta_slice = slice(None, 64**2)
-u_slice = slice(64**2, 64**2 + 63 * 64)
-v_slice = slice(64**2 + 64 * 63, None)
+    return out_vec  # batch x channel x width x height
 
 
 class SW_UNet(BaseModel):
@@ -435,13 +469,20 @@ class SW_UNet(BaseModel):
         self.rank = rank
         self.n_out = int(rank * (self.controlsize + 1))
         self.layers = UNet(rank)
+        self.normalizer = torch.tensor([15.0, 0.03, 0.03], device=device).reshape(
+            1, 3, 1, 1
+        )
+
+    def normalize_state(self, x_img):
+        return x_img / self.normalizer
 
     def forward(self, x):
         x = pad_and_merge(x)
+        x = self.normalize_state(x)
         return self.layers(x)
 
     def construct_approx(self, x):
-        nn_output = self.layers(pad_and_merge(x))
+        nn_output = self.forward(x)
         vi, log_li = nn_output[:, :-1, :], nn_output[:, -1, :]
         singular_values = torch.exp(log_li)
         singular_vectors = torch.linalg.qr(vi)[0]
@@ -449,7 +490,7 @@ class SW_UNet(BaseModel):
         return H, singular_values, vi
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
-        nn_output = self.layers(pad_and_merge(x))
+        nn_output = self.forward(x)
         vi, log_li = nn_output[:, :-1, :], nn_output[:, -1, :]
         singular_values = torch.exp(-log_li)
         singular_vectors = torch.linalg.qr(vi)[0]
@@ -461,7 +502,7 @@ class SW_UNet(BaseModel):
         # GTG = self._construct_gaussnewtonmatrix(batch)
         # Get the GN approximation of the Hessian matrix
         x = x.view(x.size(0), -1)
-        y_hatinv = self.construct_preconditioner(x)
+        # y_hatinv = self.construct_preconditioner(x)
         GtG_approx, singular_values, vi = self.construct_approx(x)
         GtG_approx_Z = GtG_approx @ z
         # y_hat = self.construct_LMP(S, AS, 1)
@@ -475,11 +516,19 @@ class SW_UNet(BaseModel):
         # vi = torch.nn.functional.normalize(vi, dim=1)
 
         ortho_reg = regul.loss_gram_matrix(vi)
-        loss = mse_approx / norm_Az + ortho_reg * 0
+        loss = mse_approx / norm_Az + ortho_reg
         self.log(f"Loss/{stage}_loss", loss, prog_bar=True)
         self.log(f"Info/{stage}_norm_Az", norm_Az)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
         return {"loss": loss}
+
+
+class SW_TransUNet(SW_UNet):
+    def __init__(self, state_dimension, rank, config):
+        self.controlsize = 64**2 + 2 * 63 * 64
+        super().__init__(state_dimension, rank, config)
+        print(f"{self.normalizer.device=}")
+        self.layers = TransUNet(rank)
 
 
 class ConvSW(nn.Module):
@@ -537,3 +586,7 @@ class SW_Conv(SW_UNet):
         self.rank = self.rank
         self.n_out = int(self.rank * (self.controlsize + 1))
         self.layers = ConvSW(self.rank, 128, 5)
+
+
+model_list = [SW_UNet, SW_Conv, SW_TransUNet]
+model_classes = {cl.__name__: cl for cl in model_list}

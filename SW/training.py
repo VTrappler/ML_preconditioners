@@ -22,8 +22,10 @@ from prec_models.models_spectral import (
     SVDConvolutionalSPAI,
     SVDPrec,
 )
-from prec_models.sw_unet import SW_UNet, SW_Conv
+from prec_models.sw_unet import SW_UNet, SW_Conv, SW_TransUNet
 
+model_list = [SW_UNet, SW_Conv, SW_TransUNet]
+model_classes = {cl.__name__: cl for cl in model_list}
 # create your own theme!
 
 
@@ -63,13 +65,11 @@ def flatten_dict(d, parent_key="", sep="/"):
 
 
 # from dotenv import load_dotenv, dotenv_values
-model_list = [SW_UNet, SW_Conv]
-model_classes = {cl.__name__: cl for cl in model_list}
 
 
 def main(config):
     loggers = []
-    if config['misc']['mlflow']:
+    if config["misc"]["mlflow"]:
         mlflow.set_experiment("SW_GN_learning")
         mlflow.pytorch.autolog(
             log_models=False,
@@ -85,7 +85,6 @@ def main(config):
         print("No MLFLOW -> Tensorboard logger")
         tb_logger = TensorBoardLogger(save_dir=logs_path, name="SW")
         loggers.append(tb_logger)
-
 
     print(f"{torch.cuda.is_available()=}")
     print(f"{torch.cuda.device_count()=}")
@@ -107,7 +106,7 @@ def main(config):
 
     config["optimizer"].pop("lr", None)
 
-    if config['misc']['mlflow']:
+    if config["misc"]["mlflow"]:
         mlflow.log_params(flatten_dict(config))
         tmp_storage_dir = os.path.join(
             os.sep,
@@ -155,7 +154,6 @@ def main(config):
     datamodule.setup(None)
     loggers.append(CSVLogger(logs_path, version="SW"))
 
-
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=1,
@@ -181,7 +179,7 @@ def main(config):
     )
     print(trainer.logged_metrics)
 
-    if config['misc']['mlflow']:
+    if config["misc"]["mlflow"]:
         shutil.copyfile(
             os.path.join(logs_path, "lightning_logs", "SW", "metrics.csv"),
             os.path.join(artifacts_path, "training_logs.csv"),

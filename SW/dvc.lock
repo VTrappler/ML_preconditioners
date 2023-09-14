@@ -6,31 +6,31 @@ stages:
     deps:
     - path: config.yaml
       hash: md5
-      md5: 9e597767ac6a90a9ac789d6514144019
-      size: 483
+      md5: b7266a81612f4acdaa6e5dc5944ca2c8
+      size: 488
     - path: training.py
       hash: md5
       md5: 30af385c97b3708068537ea9710f89a2
       size: 7230
     params:
       config.yaml:
-        architecture.batch_size: 5
+        architecture.batch_size: 10
         architecture.class: SW_TransUNet
         architecture.n_layers: 0
-        architecture.rank: 250
-        data.data_folder: /data/data_data_assimilation/shallow_water/large
+        architecture.rank: 100
+        data.data_folder: /data/data_data_assimilation/shallow_water/basic_id
         model.dimension: 12160
-        optimizer.epochs: 50
+        optimizer.epochs: 200
     outs:
     - path: artifacts/metrics.yaml
       hash: md5
-      md5: ad530383b1f3f468f073e09f1ba2d133
-      size: 308
+      md5: 8d523c580702557a16856f00e892e7b0
+      size: 307
     - path: artifacts/mlflow_run_id.yaml
       hash: md5
-      md5: e5aefea780beeb9896eba785378d4784
-      size: 235
+      md5: 8ccc3519125140281de401f942bb89c7
+      size: 238
     - path: artifacts/training_logs.csv
       hash: md5
-      md5: 68a879db7058f27a68fe082be22efcf1
-      size: 30607
+      md5: 795581671da99a44bb13a9c774ec32ac
+      size: 41779

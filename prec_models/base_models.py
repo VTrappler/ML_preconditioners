@@ -234,8 +234,9 @@ class BaseModel(pl.LightningModule):
         # optimizer = Adam(self.parameters(), lr=1e-3)
         # scheduler = PlOnPlateau(optimizer, ...)
         # return [optimizer], [scheduler]
+        self.trainer.fit_loop.setup_data()
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-3)
-        scheduler = CosineAnnealingLR(optimizer, T_max=20)
+        scheduler = CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-8)
         return [optimizer], [scheduler]
 
 
@@ -299,3 +300,7 @@ def construct_MLP(
         lays.append(nn.LeakyReLU())
     lays.append(nn.Linear(n_neurons_per_lay, n_out))
     return nn.Sequential(*lays)
+
+
+def low_rank_construction(singular_vectors, singular_values):
+    return singular_vectors.bmm(singular_values[:, :, None] * singular_vectors.mT)

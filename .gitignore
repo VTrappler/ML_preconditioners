@@ -8,3 +8,5 @@ _obsolete*
 *.code-workspace
 .env
 .set_environment_variables.sh
+devcontainer.json
+.devcontainer

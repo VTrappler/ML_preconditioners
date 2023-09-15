@@ -1,4 +1,6 @@
 from typing import List, Optional, Tuple
+from matplotlib import pyplot as plt
+import mlflow
 import numpy as np
 import lightning.pytorch as pl
 import torch
@@ -14,6 +16,7 @@ from .base_models import (
     construct_model_class,
     eye_like,
     bgramschmidt,
+    low_rank_construction,
 )
 
 from .convolutional_nn import ConvLayersSVD
@@ -61,23 +64,16 @@ def construct_matrix(orth_S, mu):
     return sm + identity
 
 
-def construct_matrix_USUt(orth_S, diag):
-    batch_size, state_dimension, rk = orth_S.shape
-    return orth_S.bmm(diag.view(batch_size, rk, 1) * orth_S.mT)
-
-
-def low_rank_construction(Ur, Sr):
-    return Ur.bmm(Sr[:, :, None] * Ur.mT)
-
-
-def power_singular_value_reconstruction(Ur, Sr, alpha):
-    batch_size, state_dimension, rk = Ur.shape
+def power_singular_value_reconstruction(singular_vectors, singular_values, alpha):
+    batch_size, state_dimension, rk = singular_vectors.shape
     identity = (
         torch.eye(state_dimension)
         .view(1, state_dimension, state_dimension)
         .expand(batch_size, -1, -1)
     )
-    return identity + low_rank_construction(Ur, Sr ** (alpha) - 1)
+    return identity + low_rank_construction(
+        singular_vectors, singular_values ** (alpha) - 1
+    )
 
 
 class SVDPrec(BaseModel):
@@ -100,6 +96,12 @@ class SVDPrec(BaseModel):
         self.AS = AS
         self.datatype = datatype
 
+        self.identity = (
+            torch.eye(self.state_dimension)
+            .reshape(-1, self.state_dimension, self.state_dimension)
+            .repeat(config["batch_size"], 1, 1)
+        )
+
         ## Construction of the MLP
         ### Construction of the input layer
         if self.neurons_per_layer != 0:  # in case of no op warning
@@ -119,12 +121,15 @@ class SVDPrec(BaseModel):
             len(x), self.state_dimension + 1, self.rank
         )  # Batch_dimension x (state dimension + 1) x rank
         vi, log_li = nn_output[:, :-1, :], nn_output[:, -1, :]
-        eli = torch.exp(log_li)
-        qi = torch.linalg.qr(vi)[0]
+        singular_values = torch.exp(log_li)
+        singular_vectors = torch.linalg.qr(vi)[0]
         # vi = torch.nn.functional.normalize(vi, dim=1)
         # H = construct_matrix_USUt(qi, eli)
-        H = power_singular_value_reconstruction(qi, eli, alpha=1)
-        return H
+        #        H = power_singular_value_reconstruction(
+        #           singular_vectors, singular_values, alpha=1
+        #        )
+        H = low_rank_construction(singular_vectors, singular_values)
+        return H, singular_values, vi
 
     def construct_preconditioner(self, x: torch.Tensor) -> torch.Tensor:
         S = self.layers(x).reshape(
@@ -136,11 +141,14 @@ class SVDPrec(BaseModel):
         qi = torch.linalg.qr(vi)[0]
         # vi = torch.nn.functional.normalize(vi, dim=1)
 
-        Hm1 = construct_matrix_USUt(qi, eli)
+        Hm1 = low_rank_construction(qi, eli)
         return Hm1
 
     def _common_step_full_norm(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
         x, forw, tlm = batch
+        x.to("cuda")
+        forw.to("cuda")
+        tlm.to("cuda")
         GTG = self._construct_gaussnewtonmatrix(
             batch
         )  # Get the GN approximation of the Hessian matrix
@@ -148,7 +156,7 @@ class SVDPrec(BaseModel):
         ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
         x = x.view(x.size(0), -1)
         y_hatinv = self.construct_preconditioner(x)
-        GtG_approx = self.construct_approx(x)
+        GtG_approx, sing_vals, vi = self.construct_approx(x)
         # y_hat = self.construct_LMP(S, AS, 1)
 
         regul = Regularization(self, stage)
@@ -156,16 +164,21 @@ class SVDPrec(BaseModel):
         mse_approx = self.mse(GtG_approx, GTG)
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
 
-        vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
-            :, :-1, :
-        ]
-        vi = torch.nn.functional.normalize(vi, dim=1)
+        # vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
+        #     :, :-1, :
+        # ]
+        # vi = torch.nn.functional.normalize(vi, dim=1)
+
+        sing_vecs = torch.linalg.qr(vi)[0]
+        mse_rayleigh = 0 * self.mse(
+            sing_vecs.mT @ GTG @ sing_vecs, torch.diag_embed(sing_vals)
+        )
 
         ortho_reg = regul.loss_gram_matrix(vi)
-        loss = mse_approx + ortho_reg  # + 0.5 * reg
+        loss = mse_approx + mse_rayleigh + ortho_reg  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
-        self.log(f"Loss/{stage}_mse_approx", mse_approx)
-
+        self.log(f"Loss/{stage}_rayleigh", mse_rayleigh)
+        self.log(f"Loss/{stage}_lr_approx", mse_approx)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
 
     def _common_step_iterable(self, batch: Tuple, batch_idx: int, stage: str):
@@ -181,10 +194,10 @@ class SVDPrec(BaseModel):
         return {"loss": loss, "gtg": GtGdx.detach(), "y_hat": GtGdx_hat.detach()}
 
     def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
-        if (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
-            return self._common_step_randomvectors(batch, batch_idx, stage)
-        elif self.datatype == "full":
+        if (self.datatype == "full") or (self.n_rnd_vectors == 0):
             return self._common_step_full_norm(batch, batch_idx, stage)
+        elif (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors(batch, batch_idx, stage)
         elif self.datatype == "iterable":
             return self._common_step_iterable(batch, batch_idx, stage)
 
@@ -195,7 +208,8 @@ class SVDPrec(BaseModel):
         z_random = torch.randn(size=(1, self.state_dimension, self.n_rnd_vectors))
         x = x.view(x.size(0), -1)
         y_hatinv = self.construct_preconditioner(x)
-        GtG_approx_Z = self.construct_approx(x) @ z_random
+        GtG_approx, sing_vals, vi = self.construct_approx(x)
+        GtG_approx_Z = GtG_approx @ z_random
         GtG_Z = GTG @ z_random
         # y_hat = self.construct_LMP(S, AS, 1)
 
@@ -204,12 +218,9 @@ class SVDPrec(BaseModel):
         mse_approx = self.mse(GtG_approx_Z, GtG_Z)
         # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
 
-        vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
-            :, :-1, :
-        ]
         vi = torch.nn.functional.normalize(vi, dim=1)
 
-        ortho_reg = regul.loss_gram_matrix(vi)
+        ortho_reg = regul.loss_gram_matrix(vi, coeff=1e3)
         loss = mse_approx + ortho_reg  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss, prog_bar=True)
         self.log(f"Loss/{stage}_mse_approx", mse_approx)
@@ -237,6 +248,136 @@ class SVDConvolutional(SVDPrec):
         self.layers = ConvLayersSVD(
             state_dimension, n_latent=rank, kernel_size=5, n_layers=config["n_layers"]
         )
+
+    def on_validation_epoch_end(self):
+        pass
+        # if self.global_step != 0:
+        #     state_test, _, tlm_test = self.train_dataloader().dataset[0]
+        #     # state_test = torch.rand(size=(1, 100))
+        #     # tlm_test = torch.rand(size=(1000, 100))
+        #     GN_matrix = (tlm_test.T @ tlm_test).squeeze()
+        #     U_test, S_test, _ = torch.linalg.svd(GN_matrix)
+        #     nn_output = self.layers(state_test.reshape(1, -1)).reshape(
+        #         1, self.state_dimension + 1, self.rank
+        #     )  # Batch_dimension x (state dimension + 1) x rank
+        #     vi, log_li = nn_output[:, :-1, :], nn_output[:, -1, :]
+        #     singvals_hat = torch.exp(log_li).squeeze()
+        #     singvecs_hat = torch.linalg.qr(vi)[0].squeeze()
+        #     Lhalf = power_singular_value_reconstruction(
+        #         singvecs_hat[None, ...], singvals_hat[None, ...], alpha=-0.5
+        #     )
+        #     # print(Lhalf.shape)
+        #     LtAL = Lhalf.mT @ GN_matrix @ Lhalf
+        #     true_shifted_A = (
+        #         power_singular_value_reconstruction(
+        #             U_test[None, :, : self.rank], S_test[None, : self.rank], alpha=-1
+        #         )
+        #         @ GN_matrix
+        #     )
+        #     fig, axs = plt.subplots(nrows=1, ncols=2)
+        #     axs[0].plot(S_test)
+        #     axs[0].plot(torch.roll(singvals_hat, self.rank))
+        #     axs[1].plot(torch.linalg.svd(true_shifted_A)[1])
+        #     axs[1].plot(torch.linalg.svd(LtAL)[1])
+        #     mlflow.log_figure(fig, f"svd_{self.global_step}.png")
+        # else:
+        #     pass
+
+
+class SVDConvolutionalSPAI(SVDConvolutional):
+    def __init__(
+        self,
+        state_dimension: int,
+        rank: int,
+        config: dict,
+    ) -> None:
+        """
+        config: dict with keys n_layers, neurons_per_layer, batch_size,
+        """
+        # super().__init__()
+        super().__init__(state_dimension, rank, config)
+        self.rank = rank
+        self.n_out = int(rank * (state_dimension + 1))
+
+        ## Construction of the MLP
+        ### Construction of the input layer
+
+        self.layers = ConvLayersSVD(
+            state_dimension, n_latent=rank, kernel_size=5, n_layers=config["n_layers"]
+        )
+
+    def _common_step_full_norm_SPAI(
+        self, batch: Tuple, batch_idx: int, stage: str
+    ) -> dict:
+        x, forw, tlm = batch
+        GTG = self._construct_gaussnewtonmatrix(
+            batch
+        )  # Get the GN approximation of the Hessian matrix
+        # Add here the addition
+        ## GTG + B^-1.reshape(-1, self.state_dimension, self.state_dimension)
+        x = x.view(x.size(0), -1)
+        y_hatinv = self.construct_preconditioner(x)
+        GtG_approx, sing_vals, vi = self.construct_approx(x)
+        # y_hat = self.construct_LMP(S, AS, 1)
+
+        regul = Regularization(self, stage)
+
+        product = y_hatinv @ GTG
+
+        mse_spai = 100 * self.mse(product, self.identity)
+        sing_vecs = torch.linalg.qr(vi)[0]
+        mse_rayleigh = self.mse(
+            sing_vecs.mT @ GTG @ sing_vecs, torch.diag_embed(sing_vals)
+        )
+
+        # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
+
+        # vi = self.layers(x).reshape(len(x), self.state_dimension + 1, self.rank)[
+        #     :, :-1, :
+        # ]
+        # vi = torch.nn.functional.normalize(vi, dim=1)
+
+        ortho_reg = regul.loss_gram_matrix(vi)
+        loss = mse_rayleigh + mse_spai + ortho_reg  # + 0.5 * reg
+        self.log(f"Loss/{stage}_loss", loss)
+        self.log(f"Loss/{stage}_spai", mse_spai)
+        self.log(f"Loss/{stage}_rayleigh", mse_rayleigh)
+        return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hatinv.detach()}
+
+    def _common_step_randomvectors_SPAI(self, batch: Tuple, batch_idx: int, stage: str):
+        x, forw, tlm = batch
+        GTG = self._construct_gaussnewtonmatrix(batch)
+        # Get the GN approximation of the Hessian matrix
+        z_random = torch.randn(size=(1, self.state_dimension, self.n_rnd_vectors))
+        x = x.view(x.size(0), -1)
+        y_hatinv = self.construct_preconditioner(x)
+        GtG_approx, sing_vals, vi = self.construct_approx(x)
+        GtG_approx_Z = GtG_approx @ z_random
+        GtG_Z = GTG @ z_random
+        # y_hat = self.construct_LMP(S, AS, 1)
+
+        regul = Regularization(self, stage)
+
+        product = y_hatinv @ GTG
+
+        mse_approx = self.mse(product, self.identity)
+        # reg =  torch.sum(skew_sym ** 2)# + self.mse(AtrueS, AS)
+
+        # vi = torch.nn.functional.normalize(vi, dim=1)
+
+        ortho_reg = regul.loss_gram_matrix(vi, coeff=1e3)
+        loss = mse_approx + ortho_reg  # + 0.5 * reg
+        self.log(f"Loss/{stage}_loss", loss, prog_bar=True)
+        self.log(f"Loss/{stage}_mse_approx", mse_approx)
+        return {"loss": loss}
+
+    def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> dict:
+        if (self.datatype == "full") or (self.n_rnd_vectors == 0):
+            return self._common_step_full_norm_SPAI(batch, batch_idx, stage)
+        elif (self.n_rnd_vectors is not None) or (self.n_rnd_vectors != 0):
+            return self._common_step_randomvectors_SPAI(batch, batch_idx, stage)
+        elif self.datatype == "iterable":
+            return self._common_step_iterable(batch, batch_idx, stage)
 
 
 class DeflationPrec(BaseModel):
@@ -315,14 +456,14 @@ class DeflationPrec(BaseModel):
         Hm1 = construct_matrix(qi, eli)
         return Hm1
 
-    def inference(self, x: torch.Tensor, data_norm=1.0) -> torch.Tensor:
+    def inference(self, x: torch.Tensor, data_norm: float = 1.0) -> torch.Tensor:
         if not self.training:
             return self.construct_preconditioner(x.view(-1)) / data_norm
         else:
             return None
 
     def inverse_inference(
-        self, x: torch.Tensor, shift=1.0, data_norm=1.0
+        self, x: torch.Tensor, shift: float = 1.0, data_norm: float = 1.0
     ) -> torch.Tensor:
         if not self.training:
             return self.construct_inv_preconditioner(x.view(-1)) * data_norm

@@ -1,0 +1,113 @@
+params:
+  - config.yaml
+vars:
+  - abs_path: /GNlearning
+  - exp_path: /GNlearning/lorenz
+  - data_path: /data_data_assimilation #/root/raw_data
+  - artifacts_path: /GNlearning/lorenz/artifacts
+
+stages:
+  generate_data:
+    cmd: >-
+      python3.10 ${abs_path}/prec_data/data_generation.py
+      --config ${exp_path}/config.yaml
+    deps:
+      - ${abs_path}/prec_data/data_generation.py
+    params:
+      - config.yaml:
+          - model.dimension
+          - model.window
+          - data.nsamples
+          - data.data_folder
+    vars:
+      - config.yaml:data
+        #    outs:
+        #      - ${data.data_folder}/x.memmap
+        #      - ${data.data_folder}/tlm.memmap
+
+  train:
+    vars:
+      - config.yaml:data
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh &&
+      python3.10 ${exp_path}/training.py
+      --config config.yaml
+      --exp-name smoke_train_tr
+    deps:
+      - config.yaml
+      - training.py
+      - ${abs_path}/prec_data/data.py
+        #      - ${data.data_folder}/x.memmap
+        #      - ${data.data_folder}/tlm.memmap
+    params:
+      - config.yaml:
+          - data.data_folder
+          - model.dimension
+          - architecture.class
+          - architecture.rank
+          - architecture.n_layers
+          - architecture.batch_size
+          - optimizer.epochs
+    metrics:
+      - ${artifacts_path}/metrics.yaml
+    outs:
+      - ${artifacts_path}/mlflow_run_id.yaml
+      - ${artifacts_path}/training_logs.csv
+
+  test:
+    deps:
+      - config.yaml
+      - ${artifacts_path}/mlflow_run_id.yaml
+      - training.py
+      - test.py
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh && 
+      python3.10 test.py
+      --run-id-yaml ${artifacts_path}/mlflow_run_id.yaml
+    params:
+      - config.yaml:
+          - data.data_folder
+    plots:
+      - ${artifacts_path}/condition_numbers.png
+      - ${artifacts_path}/svd_approximation.png
+      - ${artifacts_path}/preconditioning.png
+      - ${artifacts_path}/sanity_check.png
+
+  data_assim:
+    deps:
+      - data_assimilation_benchmark_wip.py
+      - config.yaml
+      - ${artifacts_path}/training_logs.csv
+      - ${artifacts_path}/mlflow_run_id.yaml
+    cmd: >-
+      source ${abs_path}/.set_environment_variables.sh &&
+      python3.10 data_assimilation_benchmark_wip.py
+      --config config.yaml
+      --run-id-yaml ${artifacts_path}/mlflow_run_id.yaml
+    params:
+      - config.yaml:
+          - model.window
+          - DA.n_cycle
+          - DA.n_outer
+          - DA.n_inner
+    outs:
+      - ${artifacts_path}/DA_logs.csv
+      - ${artifacts_path}/res_inner_loop.png
+      - ${artifacts_path}/cond_niter_boxplot.png
+    # plots:
+
+plots:
+  - ${artifacts_path}/training_logs.csv:
+      template: linear
+      x: step
+      y: Loss/train_loss
+  - ${artifacts_path}/res_inner_loop.png
+  - ${artifacts_path}/condition_numbers.png
+  - ${artifacts_path}/svd_approximation.png
+  - ${artifacts_path}/preconditioning.png
+  - ${artifacts_path}/cond_niter_boxplot.png
+
+  # - DA_logs.csv:
+  #     template: scatter_log.json
+  #     x: nouter
+  #     y: condprec

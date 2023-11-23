@@ -6,25 +6,25 @@ data:
   # data_folder: /root/raw_data/data_40_large_window_20
   # data_folder: /root/raw_data/data_40_large
   # data_folder: /root/raw_data/data_100_large
-  data_folder: /data/data_data_assimilation/data_100_large
+  data_folder: /home/data/data_data_assimilation/data_100_large
   nsamples: 20000
 architecture:
   class: SVDConvolutional
-  rank: 95
-  n_layers: 4
+  rank: 100
+  n_layers: 8
   neurons_per_layer: 0
-  batch_size: 8
-  lr: 1e-5
+  batch_size: 32
+  lr: 1e-4
   n_rnd_vectors: 0
 optimizer:
-  epochs: 25
+  epochs: 100
 DA:
-  n_cycle: 10
-  n_outer: 5
-  n_inner: 100
-  model_error_sqrt: 0.5
+  n_cycle: 20
+  n_outer: 3
+  n_inner: 50
+  model_error_sqrt: 0.0
   obs_error_sqrt: 3.0
   # log_file: /home/lorenz/artifacts/DA_logs.csv
-  log_file: /GNlearning/lorenz/artifacts/DA_logs.csv
+  log_file: /home/GNlearning/lorenz/artifacts/DA_logs.csv
 misc:
   mlflow: true

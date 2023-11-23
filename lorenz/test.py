@@ -1,22 +1,33 @@
 import argparse
+import logging
 import os
 import pickle
 import sys
-import logging
+
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+import torch
+from omegaconf import OmegaConf
+
+sys.path.append("..")
+from prec_models import construct_model_class
+from prec_models.models_spectral import SVDConvolutional
+
+model_list = [SVDConvolutional]
+model_classes = {cl.__name__: cl for cl in model_list}
 
 plt.style.use("seaborn-v0_8")
 plt.set_cmap("magma")
-sys.path.append("/GNlearning/") # TODO: to robustify
+sys.path.append("/home/GNlearning/")  # TODO: to robustify
 # fig_folder = os.path.join(os.sep, "home", "lorenz", "artifacts") # TODO: to robustify
-fig_folder = os.path.join(os.sep, "GNlearning", "lorenz", "artifacts") # TODO: to robustify
+fig_folder = os.path.join(
+    os.sep, "home", "GNlearning", "lorenz", "artifacts"
+)  # TODO: to robustify
 
 import tqdm
-
 
 
 def bmm(a, b):
@@ -43,7 +54,8 @@ def bqr(a):
 
 
 def sumLMP_ML(x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+    pred = loaded_model.predict(x_)
+
     vecs, logsvals = pred[:, :-1, :], pred[:, -1, :]
     Sr = np.exp(logsvals)
     Ur = bqr(vecs)
@@ -93,8 +105,8 @@ def construct_invLMP(S: np.ndarray, AS: np.ndarray, shift: float = 1.0) -> np.nd
 #     return construct_invLMP(S, AS), construct_LMP(S, AS)
 
 
-def construct_svd_ML(loaded_model, x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+def construct_svd_ML(loaded_model, x_: np.ndarray):
+    pred = loaded_model.predict(x_)
     Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
     Sr = np.exp(logsvals)
     Ur = bqr(Ur)
@@ -102,7 +114,16 @@ def construct_svd_ML(loaded_model, x_):
     return Sr.squeeze(), Ur.squeeze()
 
 
-def construct_matrices(x_):
+def construct_svd_ML(loaded_model, x_: np.ndarray):
+    pred = loaded_model.predict(x_)
+    Ur, logsvals = pred[:, :-1, :], pred[:, -1, :]
+    Sr = np.exp(logsvals)
+    Ur = bqr(Ur)
+    # proj = bmm(qi, (inv_sv[..., None] * bt(qi)))
+    return Sr.squeeze(), Ur.squeeze()
+
+
+def construct_matrices(x_: np.ndarray):
     Sr, Ur = construct_svd_ML(loaded_model, x_)
     Sr_minus_1 = Sr ** (-1) - 1
     # H = construct_matrix_USUt(qi, eli)
@@ -111,8 +132,8 @@ def construct_matrices(x_):
     return lr_approximation, prec
 
 
-def get_approximate_singular_val(x_):
-    pred = loaded_model.predict(np.asarray(x_).astype("f"))
+def get_approximate_singular_val(x_: np.ndarray):
+    pred = loaded_model.predict(x_)
     logsvals = pred[:, -1, :]
     sv = np.exp(logsvals)
     return sv
@@ -256,29 +277,46 @@ if __name__ == "__main__":
             run_id_yaml = yaml.safe_load(fstream)
             run_id = run_id_yaml["run_id"]
             data_path = run_id_yaml["data_path"]
-
+            model_path = run_id_yaml["model_path"]
+            print(f"{model_path=}")
     try:
         with open("config.yaml", "r") as fstream:
-            conf = yaml.safe_load(fstream)
-            rank = conf["architecture"]["rank"]
-            window = conf["model"]["window"]
-            dim = conf["model"]["dimension"]
-            nsamples = conf["data"]["nsamples"]
+            config = yaml.safe_load(fstream)
+            rank = config["architecture"]["rank"]
+            window = config["model"]["window"]
+            dim = config["model"]["dimension"]
+            nsamples = config["data"]["nsamples"]
     except:
         rank = 0
 
-    logged_model = f"runs:/{run_id}/smoke_model"
-    # mlflow.pyfunc.get_model_dependencies(logged_model)
-    loaded_model = mlflow.pyfunc.load_model(logged_model)
-    logger.info(f"{loaded_model=}")
+    config = OmegaConf.load(
+        os.path.join(os.sep, *model_path.split("/")[:-1], "config.yaml")
+    )
+
+    torch_model = construct_model_class(
+        model_classes[config["architecture"]["class"]],
+        rank=config["architecture"]["rank"],
+    )
+    state_dimension = config["model"]["dimension"]
+    loaded_model = torch_model(
+        state_dimension=state_dimension, config=config["architecture"]
+    )
+
+    loaded_model.load_state_dict(torch.load(model_path))
+    loaded_model.eval()
+    print("loaded model")
+    # logged_model = f"runs:/{run_id}/smoke_model"
+    # # mlflow.pyfunc.get_model_dependencies(logged_model)
+    # loaded_model = mlflow.pyfunc.load_model(logged_model)
+    # logger.info(f"{loaded_model=}")
 
     # with open(data_path, "rb") as handle:
     #     data = pickle.load(handle)
     # x_, fo_, tlm_ = zip(*data)
     # data_path = "/root/raw_data/data_100_large"
-    data_path = '/data/data_data_assimilation/data_100_large' #TODO: to robustify
-    x_mmap = os.path.join(data_path, 'x.memmap')
-    tlm_mmap = os.path.join(data_path, 'tlm.memmap')
+    data_path = "/home/data/data_data_assimilation/data_100_large"  # TODO: to robustify
+    x_mmap = os.path.join(data_path, "x.memmap")
+    tlm_mmap = os.path.join(data_path, "tlm.memmap")
 
     x_ = np.memmap(
         x_mmap,

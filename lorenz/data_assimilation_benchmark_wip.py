@@ -33,10 +33,11 @@ from DA_PoC.common.preconditioned_solvers import PreconditionedSolver, SplitPrec
 from DA_PoC.variational.incrementalCG import Incremental4DVarCG, pad_ragged
 
 logging.basicConfig(level=logging.INFO)
+root_path = os.path.join(os.sep, "home")
 logs_path = os.path.join(
-    os.sep, "data", "data_data_assimilation" "log_dump", "smoke"
+    root_path, "data", "data_data_assimilation" "log_dump", "lorenz"
 )  # TODO: robustify
-exp_path = os.path.join(os.sep, "GNlearning", "lorenz")  # TODO: robustify
+exp_path = os.path.join(root_path, "GNlearning", "lorenz")  # TODO: robustify
 # logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
 # exp_path = os.path.join(os.sep, "home", "smoke")
 artifacts_path = os.path.join(exp_path, "artifacts")
@@ -369,34 +370,35 @@ def main(config, loaded_model=None):
     #     prec=MLPseudoInverse(loaded_model, rank=100, maxiter=n_inner),
     # )
     for i in [
-        # 99,
-        90,
+        # 100,
+        95,
+        # 90,
+        # 40,
         # 35,
         # 60,
-        # 25,
-        40,
+        50,
         # 15,
     ]:
         _ = create_DA_experiment(
-            f"MLSplit_{i}",
+            f"ML_{i}",
             prec=MLSplitPrecTruncated(loaded_model, rank=i, maxiter=n_inner),
             rank=i,
         )
         _ = create_DA_experiment(
-            f"MLNaiveLMP_{i}",
+            f"ML_LMP_{i}",
             prec=MLNaiveLMP(loaded_model, rank=i, maxiter=n_inner),
             rank=i,
         )
         _ = create_DA_experiment(
-            f"Split_{i}",
+            f"Spectral_{i}",
             prec=SplitPrec(l_model_randobs, rank=i, maxiter=n_inner),
             rank=i,
         )
-
-    #     )
-    # _ = create_DA_experiment(
-    #     "PseudoInv", prec=MLPseudoInverse(loaded_model, maxiter=n_inner)
-    # )
+        # _ = create_DA_experiment(
+        #     f"PseudoInv_{i}",
+        #     prec=MLPseudoInverse(loaded_model, rank=i, maxiter=n_inner),
+        #     rank=i,
+        # )
 
     # _ = create_DA_experiment(
     #     "PseudoInv2", prec=MLPseudoInverse2(loaded_model, maxiter=n_inner)
@@ -422,10 +424,42 @@ def main(config, loaded_model=None):
                 {"niter": niter, "cond": cond, "name": exp_name, "rank": DA_exp.rank}
             )
         )
-
+    df_regression = []
+    df_residuals = []
     for i, (exp_name, DA_exp) in enumerate(DA_exp_dict.items()):
-        DA_exp.plot_residuals_inner_loop(
+        residuals, regression = DA_exp.plot_residuals_inner_loop(
             f"C{i}", label=DA_exp.exp_name, cumulative=False
+        )
+        print(regression)
+        df_regression.append(
+            pd.DataFrame(
+                [
+                    {
+                        "intercept": regression["full_linreg"].intercept,
+                        "slope": regression["full_linreg"].slope,
+                        "intercept_20": regression["20_linreg"].intercept,
+                        "slope_20": regression["20_linreg"].slope,
+                        "name": exp_name,
+                        "rank": str(DA_exp.rank),
+                    }
+                ]
+            )
+        )
+        print(f"{exp_name}, {residuals=}")
+        from io import StringIO
+
+        sio = StringIO()
+        np.savetxt(sio, residuals, newline=",")
+        df_residuals.append(
+            pd.DataFrame(
+                [
+                    {
+                        "residuals": sio.getvalue(),
+                        "name": exp_name,
+                        "rank": str(DA_exp.rank),
+                    }
+                ]
+            )
         )
     plt.legend()
     plt.ylim([1e-9, 1e2])
@@ -433,6 +467,15 @@ def main(config, loaded_model=None):
     plt.close()
 
     df = pd.concat(df_list)
+    df_regression = pd.concat(df_regression)
+    sns.barplot(df_regression, y="slope", x="name", hue="rank")
+    plt.savefig(os.path.join(artifacts_path, "linregs.png"))
+    plt.close()
+    df_regression.to_csv(os.path.join(artifacts_path, "linregs.csv"))
+    df_residuals = pd.concat(df_residuals)
+    df_residuals.to_csv(os.path.join(artifacts_path, "residuals.csv"))
+
+    print(df_regression)
     df_baseline = df[df["name"] == "baseline"]
     mean_cond_baseline = df_baseline["cond"].mean()
     mean_niter_baseline = df_baseline["niter"].mean()
@@ -497,13 +540,51 @@ if __name__ == "__main__":
     config = OmegaConf.load(args.config)
     n = config["model"]["dimension"]
     sys.path.append("..")
+    import torch
+    from prec_models import construct_model_class
+    from prec_models.models_spectral import SVDConvolutional
+
+    model_list = [SVDConvolutional]
+    model_classes = {cl.__name__: cl for cl in model_list}
+    # with open(args.run_id_yaml, "r") as fstream:
+    #     run_id_yaml = yaml.safe_load(fstream)
+    #     run_id = run_id_yaml["run_id"]
+
     with open(args.run_id_yaml, "r") as fstream:
         run_id_yaml = yaml.safe_load(fstream)
         run_id = run_id_yaml["run_id"]
-    logged_model = f"runs:/{run_id}/smoke_model"
-    mlflow.pyfunc.get_model_dependencies(logged_model)
-    loaded_model = mlflow.pyfunc.load_model(logged_model)
+        data_path = run_id_yaml["data_path"]
+        model_path = run_id_yaml["model_path"]
+        print(f"{model_path=}")
+
+    with open("config.yaml", "r") as fstream:
+        config = yaml.safe_load(fstream)
+        rank = config["architecture"]["rank"]
+        window = config["model"]["window"]
+        dim = config["model"]["dimension"]
+        nsamples = config["data"]["nsamples"]
+
+    config = OmegaConf.load(
+        os.path.join(os.sep, *model_path.split("/")[:-1], "config.yaml")
+    )
+
+    torch_model = construct_model_class(
+        model_classes[config["architecture"]["class"]],
+        rank=config["architecture"]["rank"],
+    )
+    state_dimension = config["model"]["dimension"]
+    loaded_model = torch_model(
+        state_dimension=state_dimension, config=config["architecture"]
+    )
+
+    loaded_model.load_state_dict(torch.load(model_path))
+    loaded_model.eval()
     print(f"{loaded_model=}")
+
+    # logged_model = f"runs:/{run_id}/smoke_model"
+    # mlflow.pyfunc.get_model_dependencies(logged_model)
+    # loaded_model = mlflow.pyfunc.load_model(logged_model)
+    # print(f"{loaded_model=}")
     # except:
     # loaded_model = None
     main(config, loaded_model)

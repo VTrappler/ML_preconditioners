@@ -42,11 +42,13 @@ progress_bar = RichProgressBar(
     )
 )
 
-
+root_dir = os.path.join(os.sep, "home")
 # logs_path = os.path.join(os.sep, "root", "log_dump", "smoke")
 # exp_path = os.path.join(os.sep, "home", "smoke")
-logs_path = os.path.join(os.sep, "data", "data_data_assimilation", "log_dump", "lorenz")
-exp_path = os.path.join(os.sep, "GNlearning", "lorenz")
+logs_path = os.path.join(
+    root_dir, "data", "data_data_assimilation", "log_dump", "lorenz"
+)
+exp_path = os.path.join(root_dir, "GNlearning", "lorenz")
 
 artifacts_path = os.path.join(exp_path, "artifacts")
 
@@ -119,10 +121,10 @@ def main(config):
     if config["misc"]["mlflow"]:
         mlflow.log_params(flatten_dict(config))
         tmp_storage_dir = os.path.join(
-            os.sep,
+            root_dir,
             "data",
             "data_data_assimilation",
-            "shallow_water",
+            "lorenz",
             "tmp_model_storage",
             run.info.run_id,
         )

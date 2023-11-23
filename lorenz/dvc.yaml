@@ -1,10 +1,10 @@
 params:
   - config.yaml
 vars:
-  - abs_path: /GNlearning
-  - exp_path: /GNlearning/lorenz
-  - data_path: /data_data_assimilation #/root/raw_data
-  - artifacts_path: /GNlearning/lorenz/artifacts
+  - abs_path: /home/GNlearning
+  - exp_path: /home/GNlearning/lorenz
+  - data_path: /home/data/data_data_assimilation #/root/raw_data
+  - artifacts_path: /home/GNlearning/lorenz/artifacts
 
 stages:
   generate_data:

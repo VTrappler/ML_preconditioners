@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import functools
 
-from typing import List
+from typing import List, Union, Tuple, Dict, Callable
+
+torchTensor = Union[torch.FloatTensor, torch.cuda.FloatTensor]
 
 
 class EnforcePositivity(nn.Module):
@@ -22,7 +24,7 @@ class EnforcePositivity(nn.Module):
         super().__init__()
         self.mode = mode
 
-    def forward(self, x):
+    def forward(self, x: torchTensor):
         if self.mode == "huber":
             return nn.HuberLoss(reduction="none").forward(x, torch.zeros_like(x))
         elif self.mode == "abs":
@@ -31,11 +33,11 @@ class EnforcePositivity(nn.Module):
             return nn.MSEloss(reduction="none").forward(x, torch.zeros_like(x))
 
 
-def _eye_like(tensor):
+def _eye_like(tensor: torchTensor) -> torchTensor:
     return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
 
 
-def eye_like(tensor):
+def eye_like(tensor: torchTensor) -> torchTensor:
     b = tensor.shape[0]
     eye = torch.empty_like(tensor)
     for i in range(b):
@@ -43,12 +45,12 @@ def eye_like(tensor):
     return eye
 
 
-def batch_identity_matrix(batch_size, dimension):
+def batch_identity_matrix(batch_size: int, dimension: int) -> torchTensor:
     In = torch.eye(dimension).reshape(-1, dimension, dimension).repeat(batch_size, 1, 1)
     return In
 
 
-def compose_triangular_matrix(arr: torch.Tensor) -> torch.Tensor:
+def compose_triangular_matrix(arr: torchTensor) -> torchTensor:
     arr = torch.atleast_2d(arr)
     k = arr.shape[1]
     n = int((np.sqrt(8 * k + 1) - 1) / 2)
@@ -89,7 +91,7 @@ def gen_plot(*data):
     return buf
 
 
-def bgramschmidt(bV):
+def bgramschmidt(bV: torchTensor) -> torchTensor:
     """Batch orthonormalisation of rank vectors, each of dimension ndim
     bV.shape = [batch, ndim, rank]
     """
@@ -127,24 +129,28 @@ class BaseModel(pl.LightningModule):
         self.lr = config.get("lr", 1e-4)  # <-- defaults to 1e-4
         self.n_rnd_vectors = config.get("n_rnd_vectors", None)  # <--  defaults to None
 
-    def forward(self, x):
+    def forward(self, x: torchTensor) -> torchTensor:
         layers = self.layers(x)
         diag = self.to_diag(layers)
         off_diag = self.to_offdiag(layers)
         flat = torch.cat((diag, off_diag), 1)
         return compose_triangular_matrix(flat)
 
-    def construct_full_matrix(self, L_lower):
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        x_input = torch.tensor(np.asarray(x).astype("f"))
+        return self.forward(x_input).detach().numpy()
+
+    def construct_full_matrix(self, L_lower: torchTensor) -> torchTensor:
         y_hat = torch.bmm(
             L_lower, L_lower.mT
         )  # Construct the full matrix from the Cholesky decomposition
         return y_hat
 
-    def weight_histograms_adder(self):
+    def weight_histograms_adder(self) -> None:
         for name, params in self.named_parameters():
             self.logger.experiment.add_histogram(name, params, self.current_epoch)
 
-    def gradient_histograms_adder(self):
+    def gradient_histograms_adder(self) -> None:
         global_step = self.global_step
         if global_step % 50 == 0:  # do not make the tb file huge
             for name, param in self.named_parameters():
@@ -173,15 +179,15 @@ class BaseModel(pl.LightningModule):
     #         im = transforms.ToTensor()(im)
     #         tb.add_image("identity_matrix", im, global_step=self.current_epoch)
 
-    def _construct_gaussnewtonmatrix(self, batch):
+    def _construct_gaussnewtonmatrix(self, batch: Tuple) -> torchTensor:
         x, forw, tlm = batch
         return torch.bmm(tlm.mT, tlm)
 
-    def set_gauss_newton_matrix_from_batch_function(self, func):
+    def set_gauss_newton_matrix_from_batch_function(self, func: Callable) -> None:
         """func (batch) -> torch tensor where batch x, forw, tlm"""
         self._construct_gaussnewtonmatrix = func
 
-    def _common_step(self, batch, batch_idx, stage):
+    def _common_step(self, batch: Tuple, batch_idx: int, stage: str) -> Dict:
         x, forw, tlm = batch
         GTG = self._construct_gaussnewtonmatrix(
             self, batch
@@ -205,13 +211,13 @@ class BaseModel(pl.LightningModule):
         self.log(f"Loss/{stage}_loss", loss, prob_bar=True)
         return {"loss": loss, "gtg": GTG.detach(), "y_hat": y_hat.detach()}
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: Tuple, batch_idx: int) -> Dict:
         return self._common_step(batch, batch_idx, "train")
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Tuple, batch_idx: int) -> Dict:
         return self._common_step(batch, batch_idx, "val")
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: Tuple, batch_idx: int) -> Dict:
         return self._common_step(batch, batch_idx, "test")
 
     # def on_after_backward(self):
@@ -268,39 +274,13 @@ def construct_MLP(
     return nn.Sequential(*lays)
 
 
-def Conv1D_periodic(kernel_size):
+def Conv1D_periodic(kernel_size: int) -> nn.Module:
     return torch.nn.Conv1d(
         1, 1, kernel_size=kernel_size, padding=kernel_size // 2, padding_mode="circular"
     )
 
 
-def construct_MLP(
-    n_in: int, n_hidden: int, n_neurons_per_lay: int, n_out: int
-) -> nn.Module:
-    """Construct a Fully connected MultiLayerPerceptron (LeakyReLU activation)
-
-    :param n_in: dimension of input
-    :type n_in: int
-    :param n_hidden: number of hidden layers
-    :type n_hidden: int
-    :param n_neurons_per_lay: neurons per layers
-    :type n_neurons_per_lay: int
-    :param n_out: dimension of output
-    :type n_out: int
-    :return: nn.Module
-    :rtype: int
-    """
-
-    lays = [
-        nn.Linear(n_in, n_neurons_per_lay),
-        nn.LeakyReLU(),
-    ]
-    for i in range(n_hidden):
-        lays.append(nn.Linear(n_neurons_per_lay, n_neurons_per_lay))
-        lays.append(nn.LeakyReLU())
-    lays.append(nn.Linear(n_neurons_per_lay, n_out))
-    return nn.Sequential(*lays)
-
-
-def low_rank_construction(singular_vectors, singular_values):
+def low_rank_construction(
+    singular_vectors: torchTensor, singular_values: torchTensor
+) -> torchTensor:
     return singular_vectors.bmm(singular_values[:, :, None] * singular_vectors.mT)

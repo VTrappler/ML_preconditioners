@@ -20,7 +20,7 @@ stages:
       md5: ca26b5b4725349ce9f058417308960b6
       size: 8000000
   train:
-    cmd: source /GNlearning/.set_environment_variables.sh && python3.10 /GNlearning/lorenz/training.py
+    cmd: source /home/GNlearning/.set_environment_variables.sh && python3.10 /home/GNlearning/lorenz/training.py
       --config config.yaml --exp-name smoke_train_tr
     deps:
     - path: ../prec_data/data.py
@@ -28,110 +28,110 @@ stages:
       size: 13442
     - path: config.yaml
       hash: md5
-      md5: eab79f23ae3d43974ebd556b5eb2bce5
-      size: 685
+      md5: 8d4d5cd5045604148878deb449f33f6b
+      size: 697
     - path: training.py
       hash: md5
-      md5: 200f24e3fedceedcf84e879818c0ebfe
-      size: 7798
+      md5: c6d4f9d8de340e625697ca2bbbca8ffa
+      size: 7842
     params:
       config.yaml:
-        architecture.batch_size: 8
+        architecture.batch_size: 32
         architecture.class: SVDConvolutional
-        architecture.n_layers: 4
-        architecture.rank: 95
-        data.data_folder: /data/data_data_assimilation/data_100_large
+        architecture.n_layers: 8
+        architecture.rank: 100
+        data.data_folder: /home/data/data_data_assimilation/data_100_large
         model.dimension: 100
-        optimizer.epochs: 25
+        optimizer.epochs: 100
     outs:
     - path: artifacts/metrics.yaml
       hash: md5
-      md5: d2f83fbcada683e3d0fa26cef0c505b3
-      size: 313
+      md5: aa154c282e41c568f5df1f53e3471641
+      size: 348
     - path: artifacts/mlflow_run_id.yaml
       hash: md5
-      md5: a8a8a7e4c4295f4c312dc155c483e3c7
-      size: 230
+      md5: c8e8230981775d33387ac84d35edbb14
+      size: 233
     - path: artifacts/training_logs.csv
       hash: md5
-      md5: e5e32b1385a0919d9930bf865bb1a212
-      size: 86308
+      md5: 1ca6afd085dd14c115338123f1755d96
+      size: 114411
   data_assim:
-    cmd: source /GNlearning/.set_environment_variables.sh && python3.10 data_assimilation_benchmark_wip.py
-      --config config.yaml --run-id-yaml /GNlearning/smoke/artifacts/mlflow_run_id.yaml
+    cmd: source /home/GNlearning/.set_environment_variables.sh && python3.10 data_assimilation_benchmark_wip.py
+      --config config.yaml --run-id-yaml /home/GNlearning/lorenz/artifacts/mlflow_run_id.yaml
     deps:
     - path: artifacts/mlflow_run_id.yaml
       hash: md5
-      md5: 92300ecb9c4f16f7fadf271074820e35
-      size: 114
+      md5: c8e8230981775d33387ac84d35edbb14
+      size: 233
     - path: artifacts/training_logs.csv
       hash: md5
-      md5: ba6e5bb8a94faca65d8630b300528ee1
-      size: 387503
+      md5: 1ca6afd085dd14c115338123f1755d96
+      size: 114411
     - path: config.yaml
       hash: md5
-      md5: 8d126097a05199b5b0999ad6a108b140
-      size: 665
+      md5: 8d4d5cd5045604148878deb449f33f6b
+      size: 697
     - path: data_assimilation_benchmark_wip.py
       hash: md5
-      md5: 0613d1b93656f98bcfed49ae1ee929aa
-      size: 15770
+      md5: 15ade7324e48f60d76c61b841aaae989
+      size: 18642
     params:
       config.yaml:
-        DA.n_cycle: 10
-        DA.n_inner: 100
-        DA.n_outer: 5
+        DA.n_cycle: 20
+        DA.n_inner: 50
+        DA.n_outer: 3
         model.window: 10
     outs:
     - path: artifacts/DA_logs.csv
       hash: md5
-      md5: f30e50d3be9064c4b62bccd346cd159a
-      size: 38557
+      md5: b2cbc6383d56674250c2b71430990f95
+      size: 49137
     - path: artifacts/cond_niter_boxplot.png
       hash: md5
-      md5: 6a098a53e95aad07e956bb5e1f3d4fc7
-      size: 36192
+      md5: de690baa290e3b6e5c0085df3f65951d
+      size: 34800
     - path: artifacts/res_inner_loop.png
       hash: md5
-      md5: ecddea6458f149289443d6ed81380c73
-      size: 288261
+      md5: ae36a13b67b58e4f392ce4c442211b5c
+      size: 323285
   test:
-    cmd: source /GNlearning/.set_environment_variables.sh &&  python3.10 test.py --run-id-yaml
-      /GNlearning/smoke/artifacts/mlflow_run_id.yaml
+    cmd: source /home/GNlearning/.set_environment_variables.sh &&  python3.10 test.py
+      --run-id-yaml /home/GNlearning/lorenz/artifacts/mlflow_run_id.yaml
     deps:
     - path: artifacts/mlflow_run_id.yaml
       hash: md5
-      md5: 92300ecb9c4f16f7fadf271074820e35
-      size: 114
+      md5: c8e8230981775d33387ac84d35edbb14
+      size: 233
     - path: config.yaml
       hash: md5
-      md5: 8d126097a05199b5b0999ad6a108b140
-      size: 665
+      md5: 8d4d5cd5045604148878deb449f33f6b
+      size: 697
     - path: test.py
       hash: md5
-      md5: a34244d963740cb44fea6a136370b7cc
-      size: 9496
+      md5: 52c3f163e4e8f421be662a186e8f81fa
+      size: 10652
     - path: training.py
       hash: md5
-      md5: d37be277e8d174bc1e403b249f3d345c
-      size: 5808
+      md5: c6d4f9d8de340e625697ca2bbbca8ffa
+      size: 7842
     params:
       config.yaml:
-        data.data_folder: /data/data_data_assimilation/data_100_large
+        data.data_folder: /home/data/data_data_assimilation/data_100_large
     outs:
     - path: artifacts/condition_numbers.png
       hash: md5
-      md5: 5125740373b2b4f067bc27ae57604c79
-      size: 40860
+      md5: 9ed66a737bf198f89eef0ec0a1ef5853
+      size: 43095
     - path: artifacts/preconditioning.png
       hash: md5
-      md5: 9cd5676215abb0748456243ab99033f9
-      size: 171008
+      md5: 5e42ae3c9ab57324cb79e3375236094b
+      size: 186835
     - path: artifacts/sanity_check.png
       hash: md5
-      md5: 47ae49a860f71680beee1a9738136fb8
-      size: 60298
+      md5: 8b33f5420428900355c53e70228c7439
+      size: 43660
     - path: artifacts/svd_approximation.png
       hash: md5
-      md5: 5864c2c86f6e5470b0a18796e84c9ee1
-      size: 130247
+      md5: bf38cfe4bed1de95faa415f21f23ca57
+      size: 134637

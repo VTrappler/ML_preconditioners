@@ -170,12 +170,12 @@ class SVDPrec(BaseModel):
         # vi = torch.nn.functional.normalize(vi, dim=1)
 
         sing_vecs = torch.linalg.qr(vi)[0]
-        mse_rayleigh = 0 * self.mse(
+        mse_rayleigh = self.mse(
             sing_vecs.mT @ GTG @ sing_vecs, torch.diag_embed(sing_vals)
         )
 
         ortho_reg = regul.loss_gram_matrix(vi)
-        loss = mse_approx + mse_rayleigh + ortho_reg  # + 0.5 * reg
+        loss = mse_approx + mse_rayleigh + 1e3 * ortho_reg  # + 0.5 * reg
         self.log(f"Loss/{stage}_loss", loss)
         self.log(f"Loss/{stage}_rayleigh", mse_rayleigh)
         self.log(f"Loss/{stage}_lr_approx", mse_approx)

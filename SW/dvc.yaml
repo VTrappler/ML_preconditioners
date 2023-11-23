@@ -1,12 +1,18 @@
 params:
   - config.yaml
 vars:
-  - abs_path: /GNlearning
-  - exp_path: /GNlearning/SW
-  - data_path: /data_data_assimilation #/root/raw_data
-  - artifacts_path: /GNlearning/SW/artifacts
+  - model_path: /home/shallow
+  - abs_path: /home/GNlearning
+  - exp_path: /home/GNlearning/SW
+  - data_path: /home/data_data_assimilation #/root/raw_data
+  - artifacts_path: /home/GNlearning/SW/artifacts
 
 stages:
+  data_generation:
+    cmd: >-
+      . ${abs_path}/.set_environment_variables.sh &&
+      python3.10 ${model_path}/data_generation.py --linearization /home/shallow/data/current_state.nc --config config.yaml
+
   train:
     vars:
       - config.yaml:data
